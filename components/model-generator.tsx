@@ -86,6 +86,7 @@ export function ModelGenerator() {
   const [isConvertingStl, setIsConvertingStl] = useState(false)
   const [stlUrl, setStlUrl] = useState<string | null>(null)
   const [stlViewerRef, setStlViewerRef] = useState<HTMLDivElement | null>(null)
+  const [scaledGeometry, setScaledGeometry] = useState<THREE.BufferGeometry | null>(null)
 
   const [userConfig, setUserConfig] = useState<{
     limits?: {
@@ -174,6 +175,7 @@ export function ModelGenerator() {
     setModelDimensions(null);
     setTargetDimensions(null);
     setBaseDimensions(null);
+    setScaledGeometry(null);
     
     toast({
       title: "Reset Complete",
@@ -676,62 +678,100 @@ export function ModelGenerator() {
     }
   }
 
+  // Function to export scaled geometry as STL
+  const exportScaledGeometryAsSTL = useCallback(async (): Promise<Blob | null> => {
+    if (!scaledGeometry) {
+      console.error('No scaled geometry available for export');
+      return null;
+    }
+
+    try {
+      // Create a temporary scene with the scaled geometry
+      const tempScene = new THREE.Scene();
+      const tempMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.3,
+        metalness: 0.1,
+      });
+      
+      // Clone the geometry to avoid modifying the original
+      const geometryClone = scaledGeometry.clone();
+      const tempMesh = new THREE.Mesh(geometryClone, tempMaterial);
+      tempScene.add(tempMesh);
+
+      // Use STLExporter to export the scaled geometry
+      const { STLExporter } = await import('three/examples/jsm/exporters/STLExporter.js');
+      const exporter = new STLExporter();
+      const stlData = exporter.parse(tempScene, { binary: true });
+      
+      // Create blob from STL data
+      const blob = new Blob([stlData], { type: "application/octet-stream" });
+      
+      // Clean up
+      tempMaterial.dispose();
+      geometryClone.dispose();
+      
+      return blob;
+    } catch (error) {
+      console.error('Error exporting scaled geometry as STL:', error);
+      return null;
+    }
+  }, [scaledGeometry]);
+
   const handleDownload = async () => {
-    // Handle uploaded STL files
-    if (selectedStlFile && !stlBlob) {
-      setIsDownloading(true);
-      try {
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(selectedStlFile);
-        link.download = selectedStlFile.name;
-        document.body.appendChild(link);
-        link.click();
+    setIsDownloading(true);
+    
+    try {
+      let blobToDownload: Blob | null = null;
+      let fileName = "jewelry-model.stl";
+
+      // For both uploaded STL files and generated models, 
+      // use the scaled geometry from the 3D viewer
+      if (scaledGeometry) {
+        console.log('Exporting scaled geometry with actual dimensions shown in UI');
+        blobToDownload = await exportScaledGeometryAsSTL();
         
-        document.body.removeChild(link);
-        
+        // Create filename with dimensions
+        if (modelDimensions) {
+          const { width, height, depth } = modelDimensions;
+          fileName = `jewelry-${width}x${height}x${depth}mm-${selectedMaterial}.stl`;
+        }
+      } else if (selectedStlFile && !stlBlob) {
+        // Fallback: if no scaled geometry available, use original uploaded file
+        console.warn('No scaled geometry available, using original uploaded STL file');
+        blobToDownload = selectedStlFile;
+        fileName = selectedStlFile.name;
+      } else if (stlBlob) {
+        // Fallback: use generated STL blob
+        console.warn('No scaled geometry available, using generated STL blob');
+        blobToDownload = stlBlob;
+      }
+
+      if (!blobToDownload) {
         toast({
-          title: "Download Started",
-          description: "Your STL file is being downloaded.",
-        });
-      } catch (error) {
-        console.error('Download error:', error);
-        toast({
-          title: "Download Failed",
-          description: "Failed to download the STL file.",
+          title: "No STL Available",
+          description: "Please generate or upload a model first.",
           variant: "destructive",
         });
-      } finally {
-        setIsDownloading(false);
+        return;
       }
-      return;
-    }
 
-    // Handle generated STL blobs
-    if (!stlBlob) {
-      toast({
-        title: "No STL Available",
-        description: "Please generate and convert a model to STL first.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsDownloading(true);
-    try {
-      const stlUrl = URL.createObjectURL(stlBlob);
-      
+      // Download the STL file
+      const downloadUrl = URL.createObjectURL(blobToDownload);
       const link = document.createElement('a');
-      link.href = stlUrl;
-      link.download = "magicfish-generated-model.stl";
+      link.href = downloadUrl;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       
       document.body.removeChild(link);
-      URL.revokeObjectURL(stlUrl);
+      URL.revokeObjectURL(downloadUrl);
       
       toast({
         title: "Download Started",
-        description: "Your STL file is being downloaded.",
+        description: `Your scaled STL file (${modelDimensions ? 
+          `${modelDimensions.width}x${modelDimensions.height}x${modelDimensions.depth}mm` : 
+          'actual size'}) is being downloaded.`,
       });
     } catch (error) {
       console.error('Download error:', error);
@@ -897,6 +937,11 @@ export function ModelGenerator() {
         setModelDimensions(dimensionsInMm);
         setModelWeight(weightInGrams);
 
+        // CRITICAL: Store the scaled geometry for STL export
+        // Clone the geometry at this point (after all scaling but before viewer scaling)
+        const scaledGeometryForExport = geometry.clone();
+        setScaledGeometry(scaledGeometryForExport);
+
         // Scale for viewing in the 3D scene (separate from the 15mm scaling)
         const boundingBox = new THREE.Box3().setFromObject(new THREE.Mesh(geometry));
         const size = boundingBox.getSize(new THREE.Vector3());
@@ -1002,6 +1047,7 @@ export function ModelGenerator() {
                           setModelDimensions(null);
                           setTargetDimensions(null);
                           setBaseDimensions(null);
+                          setScaledGeometry(null);
                           // Clear the 3D viewer
                           if (stlViewerRef) {
                             while (stlViewerRef.firstChild) {
@@ -1051,6 +1097,7 @@ export function ModelGenerator() {
                           setModelDimensions(null);
                           setTargetDimensions(null);
                           setBaseDimensions(null);
+                          setScaledGeometry(null);
                           // Clear the 3D viewer
                           if (stlViewerRef) {
                             while (stlViewerRef.firstChild) {
