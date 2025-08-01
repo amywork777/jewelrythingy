@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server"
 import OpenAI from "openai"
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, 
-})
+// Function to get OpenAI client only when needed
+function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    return null;
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY, 
+  });
+}
 
 // Remove the domain detection function as we want consistent behavior everywhere
 // function isDeploymentDomain(hostname: string) {
@@ -90,6 +95,11 @@ export async function POST(request: Request) {
       
       // Call OpenAI Vision API with instructions for a concise description
       try {
+        const openai = getOpenAIClient();
+        if (!openai) {
+          throw new Error("OpenAI client not available");
+        }
+        
         const response = await openai.chat.completions.create({
           model: "gpt-4o",
           messages: [
