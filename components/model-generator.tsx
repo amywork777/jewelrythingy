@@ -69,6 +69,11 @@ export function ModelGenerator() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedStlFile, setSelectedStlFile] = useState<File | null>(null)
+  const [modelWeight, setModelWeight] = useState<number>(0)
+  const [modelDimensions, setModelDimensions] = useState<{width: number, height: number, depth: number} | null>(null)
+  const [selectedMaterial, setSelectedMaterial] = useState<'silver' | 'gold'>('silver')
+  const [targetDimensions, setTargetDimensions] = useState<{width: number, height: number, depth: number} | null>(null)
+  const [baseDimensions, setBaseDimensions] = useState<{width: number, height: number, depth: number} | null>(null)
   const { toast } = useToast()
 
   const [status, setStatus] = useState<ModelGenerationStatus>("idle")
@@ -107,6 +112,52 @@ export function ModelGenerator() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
+  // Function to recalculate weight based on current dimensions and material
+  const recalculateWeight = useCallback(() => {
+    if (!modelDimensions) return;
+    
+    // Calculate volume in cubic millimeters
+    const volumeMm3 = modelDimensions.width * modelDimensions.height * modelDimensions.depth;
+    
+    // Material densities
+    const materialDensities = {
+      silver: 0.01049, // Sterling silver: 10.49 g/cm³ = 0.01049 g/mm³
+      gold: 0.01307    // 14k gold: 13.07 g/cm³ = 0.01307 g/mm³
+    };
+    
+    const density = materialDensities[selectedMaterial];
+    const weightInGrams = Math.round(volumeMm3 * density * 100) / 100;
+    
+    setModelWeight(weightInGrams);
+  }, [modelDimensions, selectedMaterial]);
+
+  // Recalculate weight when material changes
+  useEffect(() => {
+    recalculateWeight();
+  }, [recalculateWeight]);
+
+  // Function to apply dimension changes in real-time
+  const applyDimensionChanges = useCallback(() => {
+    if (!stlUrl || !stlViewerRef || !baseDimensions || !targetDimensions) return;
+    
+    // Calculate new weight based on target dimensions
+    const volumeMm3 = targetDimensions.width * targetDimensions.height * targetDimensions.depth;
+    const materialDensities = {
+      silver: 0.01049, // Sterling silver: 10.49 g/cm³ = 0.01049 g/mm³
+      gold: 0.01307    // 14k gold: 13.07 g/cm³ = 0.01307 g/mm³
+    };
+    const density = materialDensities[selectedMaterial];
+    const weightInGrams = Math.round(volumeMm3 * density * 100) / 100;
+    
+    setModelWeight(weightInGrams);
+    setModelDimensions(targetDimensions);
+  }, [stlUrl, stlViewerRef, baseDimensions, targetDimensions, selectedMaterial]);
+
+  // Apply dimension changes when target dimensions change
+  useEffect(() => {
+    applyDimensionChanges();
+  }, [applyDimensionChanges]);
+
   const resetState = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
@@ -119,6 +170,10 @@ export function ModelGenerator() {
     setIsDownloading(false);
     setStlBlob(null);
     setStlUrl(null);
+    setModelWeight(0);
+    setModelDimensions(null);
+    setTargetDimensions(null);
+    setBaseDimensions(null);
     
     toast({
       title: "Reset Complete",
@@ -738,36 +793,36 @@ export function ModelGenerator() {
       controls.autoRotate = true;
       controls.autoRotateSpeed = 0.5;
 
-      // Balanced lighting for good visibility
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 3.0);
+      // Bright lighting for shiny jewelry visibility
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 4.5);
       directionalLight.position.set(1, 1, 1);
       directionalLight.castShadow = true;
       directionalLight.shadow.mapSize.width = 2048;
       directionalLight.shadow.mapSize.height = 2048;
       scene.add(directionalLight);
 
-      const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+      const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
       scene.add(ambientLight);
 
-      const pointLight1 = new THREE.PointLight(0xffffff, 2.0);
+      const pointLight1 = new THREE.PointLight(0xffffff, 3.0);
       pointLight1.position.set(-5, 5, 5);
       scene.add(pointLight1);
 
-      const pointLight2 = new THREE.PointLight(0xffffff, 2.0);
+      const pointLight2 = new THREE.PointLight(0xffffff, 3.0);
       pointLight2.position.set(5, -5, 5);
       scene.add(pointLight2);
 
       // Add a few more lights for jewelry sparkle
-      const pointLight3 = new THREE.PointLight(0xffffff, 1.5);
+      const pointLight3 = new THREE.PointLight(0xffffff, 2.5);
       pointLight3.position.set(0, 8, -8);
       scene.add(pointLight3);
 
-      const pointLight4 = new THREE.PointLight(0xffffff, 1.5);
+      const pointLight4 = new THREE.PointLight(0xffffff, 2.5);
       pointLight4.position.set(-8, -8, 0);
       scene.add(pointLight4);
 
       // Add rim lighting for edge highlights
-      const rimLight = new THREE.DirectionalLight(0xffffff, 1.5);
+      const rimLight = new THREE.DirectionalLight(0xffffff, 2.5);
       rimLight.position.set(-1, 0, 1);
       scene.add(rimLight);
 
@@ -776,13 +831,78 @@ export function ModelGenerator() {
       loader.load(stlUrl, (geometry) => {
         // Center the geometry
         geometry.center();
+        geometry.computeVertexNormals();
 
-        // Scale the geometry to fit the viewer
+        // Calculate original bounding box
+        const tempMesh1 = new THREE.Mesh(geometry);
+        const originalBox = new THREE.Box3().setFromObject(tempMesh1);
+        const originalSize = originalBox.getSize(new THREE.Vector3());
+        
+        // Find the tallest dimension
+        const maxDimension = Math.max(originalSize.x, originalSize.y, originalSize.z);
+        
+        // Scale to make tallest dimension 15mm
+        const targetSizeInMeters = 0.015; // 15mm in meters
+        const scaleFactorTo15mm = targetSizeInMeters / maxDimension;
+        geometry.scale(scaleFactorTo15mm, scaleFactorTo15mm, scaleFactorTo15mm);
+        
+        // Calculate base dimensions after 15mm scaling
+        const tempMesh2 = new THREE.Mesh(geometry);
+        const baseBox = new THREE.Box3().setFromObject(tempMesh2);
+        const baseSize = baseBox.getSize(new THREE.Vector3());
+        const baseDimensionsInMm = {
+          width: Math.round(baseSize.x * 1000 * 100) / 100,
+          height: Math.round(baseSize.y * 1000 * 100) / 100,
+          depth: Math.round(baseSize.z * 1000 * 100) / 100
+        };
+        
+        // Set base dimensions and initialize target dimensions if not set
+        setBaseDimensions(baseDimensionsInMm);
+        if (!targetDimensions) {
+          setTargetDimensions(baseDimensionsInMm);
+        }
+        
+        // Apply custom scaling if target dimensions are different from base
+        const currentTargets = targetDimensions || baseDimensionsInMm;
+        const scaleX = currentTargets.width / baseDimensionsInMm.width;
+        const scaleY = currentTargets.height / baseDimensionsInMm.height;
+        const scaleZ = currentTargets.depth / baseDimensionsInMm.depth;
+        
+        geometry.scale(scaleX, scaleY, scaleZ);
+        
+        // Calculate final dimensions in mm
+        const tempMesh3 = new THREE.Mesh(geometry);
+        const finalBox = new THREE.Box3().setFromObject(tempMesh3);
+        const finalSize = finalBox.getSize(new THREE.Vector3());
+        const dimensionsInMm = {
+          width: Math.round(finalSize.x * 1000 * 100) / 100,
+          height: Math.round(finalSize.y * 1000 * 100) / 100,
+          depth: Math.round(finalSize.z * 1000 * 100) / 100
+        };
+        
+        // Calculate volume (in cubic meters) and estimate weight
+        const volumeM3 = finalSize.x * finalSize.y * finalSize.z;
+        const volumeMm3 = volumeM3 * 1e9; // Convert to cubic millimeters
+        
+        // Material densities
+        const materialDensities = {
+          silver: 0.01049, // Sterling silver: 10.49 g/cm³ = 0.01049 g/mm³
+          gold: 0.01307    // 14k gold: 13.07 g/cm³ = 0.01307 g/mm³
+        };
+        
+        const density = materialDensities[selectedMaterial];
+        const weightInGrams = Math.round(volumeMm3 * density * 100) / 100;
+        
+        // Update state with calculations
+        setModelDimensions(dimensionsInMm);
+        setModelWeight(weightInGrams);
+
+        // Scale for viewing in the 3D scene (separate from the 15mm scaling)
         const boundingBox = new THREE.Box3().setFromObject(new THREE.Mesh(geometry));
         const size = boundingBox.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
-        const scale = 5 / maxDim;
-        geometry.scale(scale, scale, scale);
+        const viewerScale = 5 / maxDim;
+        geometry.scale(viewerScale, viewerScale, viewerScale);
 
         // Create pure white shiny material
         material = new THREE.MeshStandardMaterial({
@@ -844,7 +964,7 @@ export function ModelGenerator() {
       if (controls) controls.dispose();
       if (renderer) renderer.dispose();
     };
-  }, [stlUrl, stlViewerRef]);
+  }, [stlUrl, stlViewerRef, targetDimensions]);
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -878,6 +998,16 @@ export function ModelGenerator() {
                           e.stopPropagation();
                           setSelectedFile(null);
                           setPreviewUrl(null);
+                          setModelWeight(0);
+                          setModelDimensions(null);
+                          setTargetDimensions(null);
+                          setBaseDimensions(null);
+                          // Clear the 3D viewer
+                          if (stlViewerRef) {
+                            while (stlViewerRef.firstChild) {
+                              stlViewerRef.removeChild(stlViewerRef.firstChild);
+                            }
+                          }
                         }}
                         className="text-xs h-6 px-2"
                       >
@@ -917,6 +1047,16 @@ export function ModelGenerator() {
                           setSelectedStlFile(null);
                           setStlUrl(null);
                           setStatus("idle");
+                          setModelWeight(0);
+                          setModelDimensions(null);
+                          setTargetDimensions(null);
+                          setBaseDimensions(null);
+                          // Clear the 3D viewer
+                          if (stlViewerRef) {
+                            while (stlViewerRef.firstChild) {
+                              stlViewerRef.removeChild(stlViewerRef.firstChild);
+                            }
+                          }
                         }}
                         className="h-5 w-5 p-0"
                       >
@@ -971,6 +1111,94 @@ export function ModelGenerator() {
                     </>
                   )}
                 </Button>
+              )}
+
+              {/* Model Info Display */}
+              {status === "completed" && (modelWeight > 0 || modelDimensions) && (
+                <div className="space-y-3 bg-blue-50 p-3 rounded-lg border">
+                  <p className="text-sm font-medium text-gray-700">Model Information:</p>
+                  
+                  {/* Material Selection */}
+                  <div>
+                    <p className="text-xs font-medium text-gray-700 mb-1">Material:</p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={selectedMaterial === 'silver' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedMaterial('silver')}
+                        className="flex-1 text-xs"
+                      >
+                        🥈 Sterling Silver
+                      </Button>
+                      <Button
+                        variant={selectedMaterial === 'gold' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSelectedMaterial('gold')}
+                        className="flex-1 text-xs"
+                      >
+                        🥇 14K Gold
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Custom Dimensions */}
+                  <div>
+                    <p className="text-xs font-medium text-gray-700 mb-1">Custom Dimensions (mm):</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="text-xs text-gray-600">Width:</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          max="200"
+                          value={targetDimensions?.width || 0}
+                          onChange={(e) => {
+                            const newWidth = parseFloat(e.target.value) || 0;
+                            setTargetDimensions(prev => prev ? {...prev, width: newWidth} : {width: newWidth, height: 0, depth: 0});
+                          }}
+                          className="w-full text-xs p-1 border rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600">Height:</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          max="200"
+                          value={targetDimensions?.height || 0}
+                          onChange={(e) => {
+                            const newHeight = parseFloat(e.target.value) || 0;
+                            setTargetDimensions(prev => prev ? {...prev, height: newHeight} : {width: 0, height: newHeight, depth: 0});
+                          }}
+                          className="w-full text-xs p-1 border rounded"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600">Depth:</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          max="200"
+                          value={targetDimensions?.depth || 0}
+                          onChange={(e) => {
+                            const newDepth = parseFloat(e.target.value) || 0;
+                            setTargetDimensions(prev => prev ? {...prev, depth: newDepth} : {width: 0, height: 0, depth: newDepth});
+                          }}
+                          className="w-full text-xs p-1 border rounded"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {modelWeight > 0 && (
+                    <div className="text-xs text-gray-600">
+                      <p><strong>Estimated Weight:</strong> {modelWeight}g ({selectedMaterial === 'silver' ? 'Sterling Silver' : '14K Gold'})</p>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Action buttons when model is ready */}
