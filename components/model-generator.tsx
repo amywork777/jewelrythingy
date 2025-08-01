@@ -186,11 +186,6 @@ export function ModelGenerator() {
         setEnhancedImageUrl(enhanceData.enhancedImageUrl);
         setEnhancementPrompt(enhanceData.prompt);
         
-        toast({
-          title: "Image Enhanced! Generating 3D Model...",
-          description: "Starting 3D model generation with manufacturing-enhanced image.",
-        });
-        
         return enhanceData.enhancedImageUrl;
       } else {
         throw new Error("Enhancement failed");
@@ -440,11 +435,6 @@ export function ModelGenerator() {
       
       // Step 1: Handle Manufacturability Enhancement if enabled
       if (useAiEnhancement && !enhancedImageUrl) {
-        toast({
-          title: "Enhancing Image",
-          description: "Optimizing your image for manufacturability for better 3D conversion...",
-        });
-        
         const enhanced = await enhanceImageWithAI(selectedFile);
         if (enhanced) {
           imageToUse = enhanced;
@@ -585,11 +575,6 @@ export function ModelGenerator() {
       const blobUrl = URL.createObjectURL(blob)
       setStlUrl(blobUrl)
       
-      toast({
-        title: "Conversion complete",
-        description: "Your model has been converted to STL format.",
-      })
-      
       return blob
     } catch (error) {
       // console.error("Error converting to STL:", error)
@@ -728,24 +713,11 @@ export function ModelGenerator() {
         
         // Automatically start STL conversion when model is ready
         if (finalModelUrl) {
-          toast({
-            title: "Processing STL",
-            description: "Converting your 3D model to STL format...",
-          });
-          
           // Start STL conversion
           convertToStl(finalModelUrl)
             .then(blob => {
               if (blob) {
-                toast({
-                  title: "STL Ready",
-                  description: "Your model is ready and downloading automatically.",
-                });
-                
-                // Automatically download the STL file
-                setTimeout(() => {
-                  handleDownload();
-                }, 500); // Small delay to ensure UI updates
+                // STL conversion completed successfully
               }
             })
             .catch(() => {
@@ -929,12 +901,6 @@ export function ModelGenerator() {
       document.body.removeChild(link);
       URL.revokeObjectURL(downloadUrl);
       
-      toast({
-        title: "Download Started",
-        description: `Your scaled STL file (${modelDimensions ? 
-          `${modelDimensions.width}x${modelDimensions.height}x${modelDimensions.depth}mm` : 
-          'actual size'}) is being downloaded.`,
-      });
     } catch (error) {
       console.error('Download error:', error);
       toast({
