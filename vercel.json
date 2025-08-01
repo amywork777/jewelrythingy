@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "installCommand": "npm install --legacy-peer-deps",
+  "framework": "nextjs",
+  "functions": {
+    "app/api/download-tripo/route.ts": {
+      "memory": 3008,
+      "maxDuration": 60
+    },
+    "app/api/model-proxy/route.ts": {
+      "memory": 3008,
+      "maxDuration": 60
+    }
+  },
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  }
+} 

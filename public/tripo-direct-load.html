@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tripo Direct Loader</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100vh;
+      background-color: #000;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      background-color: #0f172a;
+      padding: 10px;
+      text-align: center;
+      z-index: 100;
+    }
+    
+    .viewer-container {
+      flex: 1;
+      position: relative;
+      background-color: #000;
+    }
+    
+    .loading-overlay {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      background-color: rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #0ea5e9;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .error-message {
+      color: #ef4444;
+      background-color: rgba(0,0,0,0.7);
+      padding: 15px 20px;
+      border-radius: 5px;
+      text-align: center;
+      max-width: 80%;
+      display: none;
+    }
+    
+    .action-buttons {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      z-index: 5;
+    }
+    
+    .action-button {
+      background-color: #0ea5e9;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    
+    .action-button:hover {
+      background-color: #0284c7;
+    }
+    
+    /* Hide action buttons initially */
+    .action-buttons {
+      display: none;
+    }
+    
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header" id="status">Initializing Tripo Model...</div>
+  
+  <div class="viewer-container" id="viewer-container">
+    <!-- We'll insert the viewer or iframe here -->
+    
+    <div class="loading-overlay" id="loading">
+      <div class="spinner"></div>
+      <div id="loading-text">Preparing to load model...</div>
+    </div>
+    
+    <div class="error-message" id="error">
+      Failed to load the model. Please try another method.
+    </div>
+    
+    <div class="action-buttons" id="actions">
+      <button class="action-button" id="try-direct">Try Direct Load</button>
+      <button class="action-button" id="try-proxy">Try Proxy Load</button>
+      <button class="action-button" id="try-iframe">Try Iframe Load</button>
+      <button class="action-button" id="download-model">Download Model</button>
+    </div>
+  </div>
+
+  <script type="module">
+    // Load the model-viewer component
+    import 'https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js';
+    
+    // Get URL parameter
+    const params = new URLSearchParams(window.location.search);
+    const modelUrl = params.get('url') || 'https://tripo-data.rg1.data.tripo3d.com/tcli_9270104da6f34a46a2479869119b834d/20250401/54a290ed-d9c1-47b3-952b-979e71b019ff/tripo_base_model_54a290ed-d9c1-47b3-952b-979e71b019ff.glb?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly90cmlwby1kYXRhLnJnMS5kYXRhLnRyaXBvM2QuY29tL3RjbGlfOTI3MDEwNGRhNmYzNGE0NmEyNDc5ODY5MTE5YjgzNGQvMjAyNTA0MDEvNTRhMjkwZWQtZDljMS00N2IzLTk1MmItOTc5ZTcxYjAxOWZmL3RyaXBvX2Jhc2VfbW9kZWxfNTRhMjkwZWQtZDljMS00N2IzLTk1MmItOTc5ZTcxYjAxOWZmLmdsYiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc0MzU1MjAwMH19fV19&Signature=Bsc~Lar0TB6Qz5sBQC4DUZi6bFK9uRK~B9lLZknXcNA-t9uyPHN5QO~o3tcb5~ogoLi3iTIrqc4Fbyj8Nur~mrFxayvDCLfMbiiGc4WLjR9o0zyjlDoEy1XmrH85cSLdo2pSgylkTLXB9dDN81mZXfTa7rxisHgqqm1u9OGnY0qQHrNYL4rl4lylefPKQUyDQj4CsQxJw7F8wwbBM1WRaD21L~TdfnrVMEThnOcbzhhquVxA~ABWvsIjcrxz4KcZoFx~HeqcFOL7z-wJyUNojAir-X88GpebbH1hilJUZLFilC~nThRniJYePwq9vuy~0guNXc62~sRbEFPZw2oGuQ__&Key-Pair-Id=K1676C64NMVM2J';
+    
+    // Get DOM elements
+    const viewerContainer = document.getElementById('viewer-container');
+    const loading = document.getElementById('loading');
+    const loadingText = document.getElementById('loading-text');
+    const errorElement = document.getElementById('error');
+    const statusElement = document.getElementById('status');
+    const actionsElement = document.getElementById('actions');
+    
+    // Buttons
+    const tryDirectButton = document.getElementById('try-direct');
+    const tryProxyButton = document.getElementById('try-proxy');
+    const tryIframeButton = document.getElementById('try-iframe');
+    const downloadModelButton = document.getElementById('download-model');
+    
+    // Track which method we're currently using
+    let currentMethod = 'direct';
+    let downloadUrl = null;
+    
+    // Show error function
+    function showError(message) {
+      loading.style.display = 'none';
+      errorElement.textContent = message;
+      errorElement.style.display = 'block';
+      actionsElement.style.display = 'flex';
+      statusElement.textContent = 'Error: ' + message;
+    }
+    
+    // Update status function
+    function updateStatus(message) {
+      statusElement.textContent = message;
+      loadingText.textContent = message;
+    }
+    
+    // Create model viewer element
+    function createModelViewer(src) {
+      // Remove any existing viewer
+      const existingViewer = document.querySelector('model-viewer');
+      if (existingViewer) {
+        existingViewer.remove();
+      }
+      
+      // Remove any existing iframe
+      const existingIframe = document.querySelector('iframe');
+      if (existingIframe) {
+        existingIframe.remove();
+      }
+      
+      // Create new model-viewer element
+      const modelViewer = document.createElement('model-viewer');
+      modelViewer.setAttribute('src', src);
+      modelViewer.setAttribute('camera-controls', '');
+      modelViewer.setAttribute('auto-rotate', '');
+      modelViewer.setAttribute('shadow-intensity', '1');
+      modelViewer.setAttribute('exposure', '0.75');
+      modelViewer.setAttribute('environment-image', 'neutral');
+      modelViewer.setAttribute('style', 'width: 100%; height: 100%;');
+      modelViewer.setAttribute('crossorigin', 'anonymous');
+      
+      // Add to container
+      viewerContainer.appendChild(modelViewer);
+      
+      // Event listeners
+      modelViewer.addEventListener('load', () => {
+        loading.style.display = 'none';
+        updateStatus('Model loaded successfully');
+        actionsElement.style.display = 'flex';
+      });
+      
+      modelViewer.addEventListener('error', (event) => {
+        console.error('Model viewer error:', event);
+        showError('Failed to load model with direct method');
+      });
+    }
+    
+    // Create iframe for model view
+    function createIframe(url) {
+      // Remove any existing elements
+      const existingViewer = document.querySelector('model-viewer');
+      if (existingViewer) {
+        existingViewer.remove();
+      }
+      
+      const existingIframe = document.querySelector('iframe');
+      if (existingIframe) {
+        existingIframe.remove();
+      }
+      
+      // Create an iframe pointing to our specialized viewer 
+      const iframe = document.createElement('iframe');
+      iframe.src = url;
+      iframe.allowFullscreen = true;
+      
+      // Add to container
+      viewerContainer.appendChild(iframe);
+      
+      // Set a timeout to check if loading completes
+      setTimeout(() => {
+        loading.style.display = 'none';
+        updateStatus('Using iframe viewer');
+      }, 2000);
+    }
+    
+    // Try to download and create a local URL for the model
+    async function downloadAndCreateLocalUrl() {
+      updateStatus('Downloading model...');
+      
+      try {
+        // First try XHR which can handle CORS differently
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', modelUrl, true);
+        xhr.responseType = 'blob';
+        
+        // Set up progress handler
+        xhr.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            updateStatus(`Downloading model: ${percent}%`);
+          }
+        };
+        
+        // Set up load handler
+        xhr.onload = function() {
+          if (xhr.status === 200) {
+            const blob = xhr.response;
+            downloadUrl = URL.createObjectURL(blob);
+            
+            // Update download button
+            downloadModelButton.onclick = () => {
+              const a = document.createElement('a');
+              a.href = downloadUrl;
+              a.download = 'tripo-model.glb';
+              a.click();
+            };
+            
+            // Use local URL in viewer
+            updateStatus('Creating model viewer...');
+            createModelViewer(downloadUrl);
+          } else {
+            console.error('XHR error:', xhr.status, xhr.statusText);
+            showError(`Failed to download model: ${xhr.status} ${xhr.statusText}`);
+            tryProxyMethod();
+          }
+        };
+        
+        // Set up error handler
+        xhr.onerror = function(e) {
+          console.error('XHR error:', e);
+          showError('Network error during download');
+          tryProxyMethod();
+        };
+        
+        // Send the request
+        xhr.send();
+      } catch (error) {
+        console.error('Download error:', error);
+        showError(`Error during download: ${error.message}`);
+        tryProxyMethod();
+      }
+    }
+    
+    // Try using proxy method
+    function tryProxyMethod() {
+      currentMethod = 'proxy';
+      updateStatus('Trying proxy method...');
+      
+      const proxyUrl = `/api/model-proxy?url=${encodeURIComponent(modelUrl)}`;
+      createModelViewer(proxyUrl);
+    }
+    
+    // Try using iframe method with specialized viewer
+    function tryIframeMethod() {
+      currentMethod = 'iframe';
+      updateStatus('Loading specialized viewer...');
+      
+      // Create a unique URL for the iframe that includes the model
+      const iframeUrl = `/direct-fetch.html?url=${encodeURIComponent(modelUrl)}`;
+      createIframe(iframeUrl);
+    }
+    
+    // Button event listeners
+    tryDirectButton.addEventListener('click', () => {
+      errorElement.style.display = 'none';
+      loading.style.display = 'flex';
+      downloadAndCreateLocalUrl();
+    });
+    
+    tryProxyButton.addEventListener('click', () => {
+      errorElement.style.display = 'none';
+      loading.style.display = 'flex';
+      tryProxyMethod();
+    });
+    
+    tryIframeButton.addEventListener('click', () => {
+      errorElement.style.display = 'none';
+      loading.style.display = 'flex';
+      tryIframeMethod();
+    });
+    
+    // Start with direct method
+    downloadAndCreateLocalUrl();
+  </script>
+</body>
+</html> 

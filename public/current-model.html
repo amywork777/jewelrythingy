@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="credentialless">
+  <!-- Vercel specific config for file system access -->
+  <meta name="vercel-deployment-url" content="${VERCEL_URL}">
+  <title>Current Tripo Model Viewer</title>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js" crossorigin="anonymous"></script>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    model-viewer {
+      width: 100%;
+      height: 100vh;
+      background-color: #000;
+    }
+    .loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.9);
+      z-index: 100;
+    }
+    .error {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.9);
+      color: #e11d48;
+      z-index: 101;
+      text-align: center;
+      padding: 2rem;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #06b6d4;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .btn {
+      background-color: #06b6d4;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      margin-top: 1rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background-color 0.3s;
+    }
+    .btn:hover {
+      background-color: #0891b2;
+    }
+    .info {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 10px 15px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 99;
+    }
+    .direct-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 99;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <div>Loading your 3D model...</div>
+    <div id="status" style="margin-top: 10px; font-size: 14px;">Preparing to download...</div>
+  </div>
+  
+  <div id="error" class="error" style="display: none;">
+    <h2>Error Loading Model</h2>
+    <p id="error-message">Failed to load the 3D model.</p>
+    <button id="tryAgainBtn" class="btn">Try Again</button>
+    <button id="viewDirectlyBtn" class="btn" style="margin-left: 10px;">Try Direct Link</button>
+  </div>
+  
+  <model-viewer 
+    id="viewer" 
+    camera-controls 
+    auto-rotate
+    shadow-intensity="1"
+    shadow-softness="0.5"
+    exposure="0.8"
+    environment-image="neutral"
+    style="display: none;"
+  ></model-viewer>
+
+  <div class="info">Use mouse to rotate, scroll to zoom</div>
+  <a href="/direct-model?url=https%3A%2F%2Ftripo-data.rg1.data.tripo3d.com%2Ftcli_9270104da6f34a46a2479869119b834d%2F20250401%2Fb8cc5869-4250-4dc0-bae7-ed978645596c%2Ftripo_base_model_b8cc5869-4250-4dc0-bae7-ed978645596c.glb%3FPolicy%3DeyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly90cmlwby1kYXRhLnJnMS5kYXRhLnRyaXBvM2QuY29tL3RjbGlfOTI3MDEwNGRhNmYzNGE0NmEyNDc5ODY5MTE5YjgzNGQvMjAyNTA0MDEvYjhjYzU4NjktNDI1MC00ZGMwLWJhZTctZWQ5Nzg2NDU1OTZjL3RyaXBvX2Jhc2VfbW9kZWxfYjhjYzU4NjktNDI1MC00ZGMwLWJhZTctZWQ5Nzg2NDU1OTZjLmdsYiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc0MzU1MjAwMH19fV19%26Signature%3DikZFc~czi70l5c6vrEy0gXBcnWyJJ4m4kd4AwwFDk2itx1N7efZKqlzIH6R0jXebBYu5BtvLDWo8hjLE9N6CIhTpDhFZ4QytKkeuLskOV7o70JpzI56NGjnL-JQDixTv8GqeCIm5Nv220UGVjhcuZiy5rXzSUDBDs7OKbDkf3eu62eE8MyLVOR5pCS9liH-MkkbpDbz5fjNQuEPGhMtqliTRpUsR4MRCZZKiHQB1WHzX1G-uDMzp3eLfz6v1OOeU6qQOifp61p3-PkPtaF50H8pLOUwTesQTMNLMAg3hmDrNQix6VxOkXQkJvHvdjmZ1v~h55P9JDGNOI9j9ax7U-w__%26Key-Pair-Id%3DK1676C64NMVM2J" class="btn direct-btn" target="_blank">Use Direct Link</a>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const viewer = document.getElementById('viewer');
+      const loading = document.getElementById('loading');
+      const error = document.getElementById('error');
+      const status = document.getElementById('status');
+      const errorMessage = document.getElementById('error-message');
+      const tryAgainBtn = document.getElementById('tryAgainBtn');
+      const viewDirectlyBtn = document.getElementById('viewDirectlyBtn');
+      
+      // The current problematic Tripo URL
+      const modelUrl = 'https://tripo-data.rg1.data.tripo3d.com/tcli_9270104da6f34a46a2479869119b834d/20250401/b8cc5869-4250-4dc0-bae7-ed978645596c/tripo_base_model_b8cc5869-4250-4dc0-bae7-ed978645596c.glb?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly90cmlwby1kYXRhLnJnMS5kYXRhLnRyaXBvM2QuY29tL3RjbGlfOTI3MDEwNGRhNmYzNGE0NmEyNDc5ODY5MTE5YjgzNGQvMjAyNTA0MDEvYjhjYzU4NjktNDI1MC00ZGMwLWJhZTctZWQ5Nzg2NDU1OTZjL3RyaXBvX2Jhc2VfbW9kZWxfYjhjYzU4NjktNDI1MC00ZGMwLWJhZTctZWQ5Nzg2NDU1OTZjLmdsYiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc0MzU1MjAwMH19fV19&Signature=ikZFc~czi70l5c6vrEy0gXBcnWyJJ4m4kd4AwwFDk2itx1N7efZKqlzIH6R0jXebBYu5BtvLDWo8hjLE9N6CIhTpDhFZ4QytKkeuLskOV7o70JpzI56NGjnL-JQDixTv8GqeCIm5Nv220UGVjhcuZiy5rXzSUDBDs7OKbDkf3eu62eE8MyLVOR5pCS9liH-MkkbpDbz5fjNQuEPGhMtqliTRpUsR4MRCZZKiHQB1WHzX1G-uDMzp3eLfz6v1OOeU6qQOifp61p3-PkPtaF50H8pLOUwTesQTMNLMAg3hmDrNQix6VxOkXQkJvHvdjmZ1v~h55P9JDGNOI9j9ax7U-w__&Key-Pair-Id=K1676C64NMVM2J';
+      
+      // Function to load via proxy
+      function loadViaProxy() {
+        status.textContent = 'Downloading model via server proxy...';
+        
+        // First fetch to ensure the model is downloaded to the server
+        fetch(`/api/download-tripo?url=${encodeURIComponent(modelUrl)}`)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`Server error: ${response.status} ${response.statusText}`);
+            }
+            return response.blob();
+          })
+          .then(blob => {
+            status.textContent = 'Model downloaded, preparing viewer...';
+            
+            // Create a local URL from the downloaded model
+            const localUrl = URL.createObjectURL(blob);
+            
+            // Now load the model into the viewer
+            viewer.setAttribute('src', localUrl);
+            viewer.style.display = 'block';
+            
+            viewer.addEventListener('load', function() {
+              loading.style.display = 'none';
+            });
+            
+            viewer.addEventListener('error', function(e) {
+              console.error('Model viewer error:', e);
+              showError('Error in model-viewer component. Try the direct link option.');
+            });
+          })
+          .catch(err => {
+            console.error('Error downloading model:', err);
+            showError(err.message || 'Failed to download model from server');
+          });
+      }
+      
+      // Function to show error
+      function showError(message) {
+        loading.style.display = 'none';
+        error.style.display = 'flex';
+        errorMessage.textContent = message;
+      }
+      
+      // Try again button
+      tryAgainBtn.addEventListener('click', function() {
+        error.style.display = 'none';
+        loading.style.display = 'flex';
+        loadViaProxy();
+      });
+      
+      // View directly button
+      viewDirectlyBtn.addEventListener('click', function() {
+        window.open(`/direct-model?url=${encodeURIComponent(modelUrl)}`, '_blank');
+      });
+      
+      // Start loading
+      loadViaProxy();
+    });
+  </script>
+</body>
+</html> 

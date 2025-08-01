@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EMERGENCY MODEL VIEWER</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100vh;
+      background-color: #000;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    
+    .header {
+      background-color: #ef4444;
+      padding: 10px;
+      text-align: center;
+      border-bottom: 2px solid #fff;
+    }
+    
+    .content {
+      display: flex;
+      flex: 1;
+      position: relative;
+    }
+    
+    .sidebar {
+      width: 300px;
+      background-color: #111;
+      padding: 15px;
+      overflow-y: auto;
+      border-right: 1px solid #333;
+    }
+    
+    .viewer-area {
+      flex: 1;
+      position: relative;
+      background-color: #000;
+    }
+    
+    #model-viewer {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    
+    .btn {
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      margin: 5px 0;
+      cursor: pointer;
+      width: 100%;
+      font-weight: bold;
+    }
+    
+    .btn-red {
+      background-color: #ef4444;
+    }
+    
+    .btn-green {
+      background-color: #10b981;
+    }
+    
+    .btn:hover {
+      opacity: 0.9;
+    }
+    
+    input {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0 10px;
+      box-sizing: border-box;
+      border: 1px solid #333;
+      background-color: #222;
+      color: white;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #2563eb;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .log {
+      margin-top: 15px;
+      padding: 10px;
+      background-color: #222;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    
+    .log-entry {
+      margin-bottom: 5px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 5px;
+    }
+    
+    .log-error {
+      color: #ef4444;
+    }
+    
+    .log-success {
+      color: #10b981;
+    }
+    
+    .log-info {
+      color: #3b82f6;
+    }
+    
+    .methods {
+      margin: 10px 0;
+    }
+    
+    .method {
+      padding: 8px;
+      background-color: #222;
+      border-radius: 4px;
+      margin-bottom: 5px;
+      cursor: pointer;
+    }
+    
+    .method.active {
+      background-color: #2563eb;
+    }
+    
+    .file-info {
+      margin-top: 10px;
+      font-size: 12px;
+      opacity: 0.7;
+    }
+    
+    .progress-bar {
+      height: 5px;
+      background-color: #111;
+      margin-top: 10px;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background-color: #2563eb;
+      width: 0%;
+      transition: width 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>EMERGENCY MODEL VIEWER</h2>
+      <div>Using advanced bypassing techniques to load your Tripo model</div>
+    </div>
+    
+    <div class="content">
+      <div class="sidebar">
+        <h3>Control Panel</h3>
+        
+        <label for="model-url">Model URL:</label>
+        <input type="text" id="model-url" placeholder="Paste Tripo model URL here">
+        
+        <div class="methods">
+          <h4>Loading Method:</h4>
+          <div class="method active" data-method="xhr">XHR Direct Download</div>
+          <div class="method" data-method="fetch-blob">Fetch to Blob URL</div>
+          <div class="method" data-method="iframe">Isolated Iframe</div>
+          <div class="method" data-method="script-inject">Script Injection</div>
+        </div>
+        
+        <button class="btn" id="load-btn">LOAD MODEL</button>
+        <button class="btn btn-green" id="download-btn">DOWNLOAD MODEL</button>
+        <button class="btn btn-red" id="reset-btn">RESET</button>
+        
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress"></div>
+        </div>
+        
+        <div class="file-info" id="file-info">No model loaded</div>
+        
+        <div class="log" id="log">
+          <div class="log-entry log-info">Ready to load model...</div>
+        </div>
+      </div>
+      
+      <div class="viewer-area">
+        <div id="viewer-container"></div>
+        
+        <div class="loading" id="loading">
+          <div class="spinner"></div>
+          <div id="loading-text">Initializing...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import 'https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js';
+    
+    // DOM elements
+    const modelUrlInput = document.getElementById('model-url');
+    const loadBtn = document.getElementById('load-btn');
+    const downloadBtn = document.getElementById('download-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const viewerContainer = document.getElementById('viewer-container');
+    const loading = document.getElementById('loading');
+    const loadingText = document.getElementById('loading-text');
+    const logElement = document.getElementById('log');
+    const progressElement = document.getElementById('progress');
+    const fileInfoElement = document.getElementById('file-info');
+    const methodElements = document.querySelectorAll('.method');
+    
+    // Global variables
+    let modelBlob = null;
+    let objectUrl = null;
+    let modelViewerElement = null;
+    let iframeElement = null;
+    let currentMethod = 'xhr';
+    
+    // Get the model URL from query param or input
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlFromParam = urlParams.get('url');
+    if (urlFromParam) {
+      modelUrlInput.value = urlFromParam;
+    } else {
+      // Default model URL
+      modelUrlInput.value = 'https://tripo-data.rg1.data.tripo3d.com/tcli_9270104da6f34a46a2479869119b834d/20250401/fd0490cc-da23-4f18-9be6-4a35c6ee2e05/tripo_base_model_fd0490cc-da23-4f18-9be6-4a35c6ee2e05.glb?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly90cmlwby1kYXRhLnJnMS5kYXRhLnRyaXBvM2QuY29tL3RjbGlfOTI3MDEwNGRhNmYzNGE0NmEyNDc5ODY5MTE5YjgzNGQvMjAyNTA0MDEvZmQwNDkwY2MtZGEyMy00ZjE4LTliZTYtNGEzNWM2ZWUyZTA1L3RyaXBvX2Jhc2VfbW9kZWxfZmQwNDkwY2MtZGEyMy00ZjE4LTliZTYtNGEzNWM2ZWUyZTA1LmdsYiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc0MzU1MjAwMH19fV19&Signature=L5WCnYYv5evcM3OLtjgElukHai~F~ELbx7n~xFTD5OE8iS6c-1Vw-Xco2XQ2gTpOEt2MJlm7s4C-IRIkrUg3j1z9TeGX-FVVZG1DQxuH6VhQ84YcIYQ~x4fk1FtR9w7~NLJBlUSzZmyFK3jtiit29mboYhi0NBGO0w8YIoTuYxc4Ef0XEBl46G-d7nCquJHTNja~F~TbzHovdAK~RrAMyF4bLEUysfimktuJa-X1l7-LALxCQrZha3sHtVVHwsm09hjMeXd5nfPKpEFc7iZyr~H71~agks7lKI8PYTQugbBXJfKdTBkU5LRIOPvcVKS230c-v~0UidpEPg3G0tunMA__&Key-Pair-Id=K1676C64NMVM2J';
+    }
+    
+    // Log functions
+    function log(message, type = 'info') {
+      const entry = document.createElement('div');
+      entry.classList.add('log-entry', `log-${type}`);
+      entry.textContent = message;
+      logElement.appendChild(entry);
+      logElement.scrollTop = logElement.scrollHeight;
+    }
+    
+    // Update loading status
+    function updateLoading(message) {
+      loadingText.textContent = message;
+    }
+    
+    // Update progress bar
+    function updateProgress(percent) {
+      progressElement.style.width = `${percent}%`;
+    }
+    
+    // Create model viewer element
+    function createModelViewer(src) {
+      // Clean up existing elements
+      if (modelViewerElement) {
+        modelViewerElement.remove();
+      }
+      if (iframeElement) {
+        iframeElement.remove();
+      }
+      
+      // Create new model-viewer
+      modelViewerElement = document.createElement('model-viewer');
+      modelViewerElement.setAttribute('id', 'model-viewer');
+      modelViewerElement.setAttribute('camera-controls', '');
+      modelViewerElement.setAttribute('auto-rotate', '');
+      modelViewerElement.setAttribute('shadow-intensity', '1');
+      modelViewerElement.setAttribute('environment-image', 'neutral');
+      modelViewerElement.setAttribute('exposure', '0.8');
+      modelViewerElement.setAttribute('src', src);
+      
+      // Add to container
+      viewerContainer.appendChild(modelViewerElement);
+      
+      // Event listeners
+      modelViewerElement.addEventListener('load', () => {
+        loading.classList.add('hidden');
+        log('Model loaded successfully!', 'success');
+      });
+      
+      modelViewerElement.addEventListener('error', (error) => {
+        log(`Model viewer error: ${error}`, 'error');
+      });
+    }
+    
+    // Method: XHR Direct Download
+    function loadWithXHR() {
+      const url = modelUrlInput.value;
+      if (!url) {
+        log('Please enter a model URL', 'error');
+        return;
+      }
+      
+      log(`Starting XHR download from: ${url}`, 'info');
+      loading.classList.remove('hidden');
+      updateLoading('Downloading model with XHR...');
+      
+      // Create XHR request
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.responseType = 'blob';
+      
+      // Add custom headers to try to bypass CORS
+      xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+      
+      // Progress handler
+      xhr.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          updateProgress(percentComplete);
+          updateLoading(`Downloading: ${percentComplete}%`);
+        }
+      };
+      
+      // Load handler
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          log('XHR download successful!', 'success');
+          modelBlob = xhr.response;
+          objectUrl = URL.createObjectURL(modelBlob);
+          
+          // Update file info
+          const sizeMB = (modelBlob.size / (1024 * 1024)).toFixed(2);
+          fileInfoElement.textContent = `Model size: ${sizeMB} MB`;
+          
+          // Create model viewer
+          updateLoading('Creating model viewer...');
+          createModelViewer(objectUrl);
+          
+          // Enable download button
+          downloadBtn.disabled = false;
+        } else {
+          log(`XHR download failed: ${xhr.status} ${xhr.statusText}`, 'error');
+          tryAlternativeMethod();
+        }
+      };
+      
+      // Error handler
+      xhr.onerror = function(error) {
+        log(`XHR download error: ${error}`, 'error');
+        tryAlternativeMethod();
+      };
+      
+      // Send the request
+      xhr.send();
+    }
+    
+    // Method: Fetch to Blob URL
+    async function loadWithFetchBlob() {
+      const url = modelUrlInput.value;
+      if (!url) {
+        log('Please enter a model URL', 'error');
+        return;
+      }
+      
+      log(`Starting Fetch download from: ${url}`, 'info');
+      loading.classList.remove('hidden');
+      updateLoading('Downloading model with Fetch API...');
+      
+      try {
+        // Try to fetch with no-cors mode
+        const response = await fetch(url, {
+          method: 'GET',
+          mode: 'cors',
+          credentials: 'omit',
+          headers: {
+            'Accept': '*/*',
+            'Origin': window.location.origin
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        // Get the blob
+        const blob = await response.blob();
+        log('Fetch download successful!', 'success');
+        modelBlob = blob;
+        objectUrl = URL.createObjectURL(modelBlob);
+        
+        // Update file info
+        const sizeMB = (modelBlob.size / (1024 * 1024)).toFixed(2);
+        fileInfoElement.textContent = `Model size: ${sizeMB} MB`;
+        
+        // Create model viewer
+        updateLoading('Creating model viewer...');
+        createModelViewer(objectUrl);
+        
+        // Enable download button
+        downloadBtn.disabled = false;
+      } catch (error) {
+        log(`Fetch download error: ${error.message}`, 'error');
+        tryAlternativeMethod();
+      }
+    }
+    
+    // Method: Isolated Iframe
+    function loadWithIframe() {
+      const url = modelUrlInput.value;
+      if (!url) {
+        log('Please enter a model URL', 'error');
+        return;
+      }
+      
+      log('Creating isolated iframe viewer', 'info');
+      loading.classList.remove('hidden');
+      updateLoading('Setting up isolated iframe...');
+      
+      // Clean up existing elements
+      if (modelViewerElement) {
+        modelViewerElement.remove();
+      }
+      if (iframeElement) {
+        iframeElement.remove();
+      }
+      
+      // Create data URL with the iframe content
+      const iframeHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body, html {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              height: 100%;
+              overflow: hidden;
+              background-color: #000;
+            }
+            model-viewer {
+              width: 100%;
+              height: 100%;
+            }
+          </style>
+          <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"><\/script>
+        </head>
+        <body>
+          <model-viewer
+            src="${url}"
+            camera-controls
+            auto-rotate
+            shadow-intensity="1"
+            environment-image="neutral"
+            exposure="0.8"
+            crossorigin="anonymous"
+          ></model-viewer>
+          <script>
+            // Tell parent when model is loaded
+            document.querySelector('model-viewer').addEventListener('load', function() {
+              window.parent.postMessage({type: 'model-loaded'}, '*');
+            });
+            
+            // Tell parent when there's an error
+            document.querySelector('model-viewer').addEventListener('error', function(error) {
+              window.parent.postMessage({type: 'model-error', error: error.toString()}, '*');
+            });
+          </script>
+        </body>
+        </html>
+      `;
+      
+      const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(iframeHtml);
+      
+      // Create iframe
+      iframeElement = document.createElement('iframe');
+      iframeElement.style.width = '100%';
+      iframeElement.style.height = '100%';
+      iframeElement.style.border = 'none';
+      iframeElement.src = dataUrl;
+      
+      // Add to container
+      viewerContainer.appendChild(iframeElement);
+      
+      // Listen for messages from iframe
+      window.addEventListener('message', function(event) {
+        if (event.data.type === 'model-loaded') {
+          loading.classList.add('hidden');
+          log('Model loaded in iframe!', 'success');
+        } else if (event.data.type === 'model-error') {
+          log(`Iframe error: ${event.data.error}`, 'error');
+          tryAlternativeMethod();
+        }
+      });
+      
+      // Set timeout for loading
+      setTimeout(() => {
+        loading.classList.add('hidden');
+      }, 10000);
+    }
+    
+    // Method: Script Injection
+    function loadWithScriptInjection() {
+      const url = modelUrlInput.value;
+      if (!url) {
+        log('Please enter a model URL', 'error');
+        return;
+      }
+      
+      log('Using advanced script injection method', 'info');
+      loading.classList.remove('hidden');
+      updateLoading('Setting up script injection...');
+      
+      // Clean up existing elements
+      if (modelViewerElement) {
+        modelViewerElement.remove();
+      }
+      if (iframeElement) {
+        iframeElement.remove();
+      }
+      
+      // Create the model viewer element first
+      modelViewerElement = document.createElement('model-viewer');
+      modelViewerElement.setAttribute('id', 'model-viewer');
+      modelViewerElement.setAttribute('camera-controls', '');
+      modelViewerElement.setAttribute('auto-rotate', '');
+      modelViewerElement.setAttribute('shadow-intensity', '1');
+      modelViewerElement.setAttribute('environment-image', 'neutral');
+      modelViewerElement.setAttribute('exposure', '0.8');
+      
+      // Add to container
+      viewerContainer.appendChild(modelViewerElement);
+      
+      // Create script element to handle loading
+      const script = document.createElement('script');
+      script.textContent = `
+        (function() {
+          // Get the model viewer element
+          const modelViewer = document.getElementById('model-viewer');
+          
+          // Function to load the model
+          async function loadModel() {
+            try {
+              const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent("${url}");
+              console.log("Trying to load model via CORS proxy:", proxyUrl);
+              
+              // Create a controller for the fetch
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 30000);
+              
+              // First try with cors proxy
+              const response = await fetch(proxyUrl, {
+                signal: controller.signal,
+                mode: 'cors',
+                headers: {
+                  'Accept': '*/*',
+                  'Origin': window.location.origin
+                }
+              });
+              
+              clearTimeout(timeoutId);
+              
+              if (!response.ok) {
+                throw new Error("Proxy fetch failed: " + response.status);
+              }
+              
+              const blob = await response.blob();
+              const objectUrl = URL.createObjectURL(blob);
+              
+              // Set the src of the model viewer
+              modelViewer.setAttribute('src', objectUrl);
+              
+              // Log success
+              console.log("Model loaded successfully via proxy!");
+              document.getElementById('loading').classList.add('hidden');
+            } catch (error) {
+              console.error("Error loading model:", error);
+              
+              // Try directly setting the URL as last resort
+              modelViewer.setAttribute('src', "${url}");
+              setTimeout(() => {
+                document.getElementById('loading').classList.add('hidden');
+              }, 5000);
+            }
+          }
+          
+          // Start loading
+          loadModel();
+          
+          // Add event listeners
+          modelViewer.addEventListener('load', () => {
+            console.log("Model loaded!");
+            document.getElementById('loading').classList.add('hidden');
+          });
+          
+          modelViewer.addEventListener('error', (error) => {
+            console.error("Model viewer error:", error);
+          });
+        })();
+      `;
+      
+      // Add script to body
+      document.body.appendChild(script);
+      
+      // Remove script after execution
+      setTimeout(() => {
+        document.body.removeChild(script);
+      }, 1000);
+      
+      // Set timeout for loading
+      setTimeout(() => {
+        loading.classList.add('hidden');
+      }, 15000);
+    }
+    
+    // Try alternative method if current one fails
+    function tryAlternativeMethod() {
+      const methods = ['xhr', 'fetch-blob', 'iframe', 'script-inject'];
+      const currentIndex = methods.indexOf(currentMethod);
+      const nextIndex = (currentIndex + 1) % methods.length;
+      currentMethod = methods[nextIndex];
+      
+      log(`Trying alternative method: ${currentMethod}`, 'info');
+      
+      // Update active method in UI
+      methodElements.forEach(el => {
+        el.classList.remove('active');
+        if (el.dataset.method === currentMethod) {
+          el.classList.add('active');
+        }
+      });
+      
+      // Call the appropriate method
+      if (currentMethod === 'xhr') {
+        loadWithXHR();
+      } else if (currentMethod === 'fetch-blob') {
+        loadWithFetchBlob();
+      } else if (currentMethod === 'iframe') {
+        loadWithIframe();
+      } else if (currentMethod === 'script-inject') {
+        loadWithScriptInjection();
+      }
+    }
+    
+    // Download the model
+    function downloadModel() {
+      if (!modelBlob || !objectUrl) {
+        log('No model available to download', 'error');
+        return;
+      }
+      
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = 'tripo-model.glb';
+      a.click();
+      
+      log('Model download initiated', 'success');
+    }
+    
+    // Reset everything
+    function resetViewer() {
+      if (modelViewerElement) {
+        modelViewerElement.remove();
+        modelViewerElement = null;
+      }
+      
+      if (iframeElement) {
+        iframeElement.remove();
+        iframeElement = null;
+      }
+      
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+        objectUrl = null;
+      }
+      
+      modelBlob = null;
+      loading.classList.add('hidden');
+      progressElement.style.width = '0%';
+      fileInfoElement.textContent = 'No model loaded';
+      
+      log('Viewer reset', 'info');
+    }
+    
+    // Set up event listeners
+    loadBtn.addEventListener('click', () => {
+      // Call the appropriate method based on the selected method
+      if (currentMethod === 'xhr') {
+        loadWithXHR();
+      } else if (currentMethod === 'fetch-blob') {
+        loadWithFetchBlob();
+      } else if (currentMethod === 'iframe') {
+        loadWithIframe();
+      } else if (currentMethod === 'script-inject') {
+        loadWithScriptInjection();
+      }
+    });
+    
+    downloadBtn.addEventListener('click', downloadModel);
+    resetBtn.addEventListener('click', resetViewer);
+    
+    // Method selection
+    methodElements.forEach(el => {
+      el.addEventListener('click', () => {
+        methodElements.forEach(m => m.classList.remove('active'));
+        el.classList.add('active');
+        currentMethod = el.dataset.method;
+        log(`Method changed to: ${currentMethod}`, 'info');
+      });
+    });
+    
+    // Auto-start loading if URL is in query param
+    if (urlFromParam) {
+      setTimeout(() => {
+        loadWithXHR();
+      }, 500);
+    }
+  </script>
+</body>
+</html> 

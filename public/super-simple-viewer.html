@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Super Simple Tripo Viewer</title>
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+    }
+    
+    .loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      z-index: 1000;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .error {
+      color: #ff4444;
+      text-align: center;
+      padding: 20px;
+      margin-top: 20px;
+    }
+    
+    .button-row {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 100;
+    }
+    
+    button {
+      background: #2196F3;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      margin: 5px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      background-color: #f5f5f5;
+    }
+  </style>
+</head>
+<body>
+  <div class="button-row">
+    <button id="download-btn">Download Model</button>
+    <button id="try-proxy">Try Proxy</button>
+    <button id="try-iframe">Try Iframe</button>
+  </div>
+  
+  <div id="model-container"></div>
+  
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div id="loading-text">Loading model...</div>
+    <div id="error" class="error" style="display: none;"></div>
+  </div>
+  
+  <script>
+    // Get URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    let modelUrl = urlParams.get('url');
+    
+    // Set default URL if none provided
+    if (!modelUrl) {
+      modelUrl = 'https://tripo-data.rg1.data.tripo3d.com/tcli_9270104da6f34a46a2479869119b834d/20250401/98b155a8-0f1f-483d-8ff9-41e3c990c9f2/tripo_base_model_98b155a8-0f1f-483d-8ff9-41e3c990c9f2.glb?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly90cmlwby1kYXRhLnJnMS5kYXRhLnRyaXBvM2QuY29tL3RjbGlfOTI3MDEwNGRhNmYzNGE0NmEyNDc5ODY5MTE5YjgzNGQvMjAyNTA0MDEvOThiMTU1YTgtMGYxZi00ODNkLThmZjktNDFlM2M5OTBjOWYyL3RyaXBvX2Jhc2VfbW9kZWxfOThiMTU1YTgtMGYxZi00ODNkLThmZjktNDFlM2M5OTBjOWYyLmdsYiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc0MzU1MjAwMH19fV19&Signature=gYxsGNO4OTmBoJctwh8yqJ~MWjnR1ZN9jbsncs9TF7Kb59~zqIt-hSldO6gyLizCU6UGMvPtZs81IC3clXKejbuvNmEMyR9Y0SDDgWvYOngw5SYlC9RBbznd0e3s436g7PYagCbPhozhEpZ6ulPAa~Yve~vmjxt4932JQNLZL4vN0PEx-eS9G~vd86C-wdfG9HfMlczae93NvdKRYG~a8-u7r2CCeDUaWdHogCY0hkejFbMy-cRRo84GA2O74tmrMV1isfjTV7gSsHGjpH13Tvtbsdx10DgMgfpJGXtIhKMDpalS6~qXBbvnQ2Br5on9yjqHzxiBGbThLuDyn3g06Q__&Key-Pair-Id=K1676C64NMVM2J';
+    }
+    
+    const loading = document.getElementById('loading');
+    const loadingText = document.getElementById('loading-text');
+    const errorElement = document.getElementById('error');
+    const modelContainer = document.getElementById('model-container');
+    const downloadBtn = document.getElementById('download-btn');
+    const tryProxyBtn = document.getElementById('try-proxy');
+    const tryIframeBtn = document.getElementById('try-iframe');
+    
+    let modelBlob = null;
+    let objectUrl = null;
+    
+    // Basic error handling
+    function showError(message) {
+      errorElement.textContent = message;
+      errorElement.style.display = 'block';
+      loadingText.style.display = 'none';
+    }
+    
+    // Try to download the model using XHR
+    function downloadModel() {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', modelUrl, true);
+      xhr.responseType = 'blob';
+      
+      xhr.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = Math.floor((e.loaded / e.total) * 100);
+          loadingText.textContent = `Downloading: ${percentComplete}%`;
+        }
+      };
+      
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          modelBlob = xhr.response;
+          objectUrl = URL.createObjectURL(modelBlob);
+          createModelViewer(objectUrl);
+          downloadBtn.disabled = false;
+        } else {
+          showError(`Failed to download model: ${xhr.status}`);
+          tryAlternative();
+        }
+      };
+      
+      xhr.onerror = function() {
+        showError('Network error occurred while downloading model');
+        tryAlternative();
+      };
+      
+      xhr.send();
+    }
+    
+    // Create model viewer element
+    function createModelViewer(src) {
+      // Remove any existing viewer
+      while (modelContainer.firstChild) {
+        modelContainer.removeChild(modelContainer.firstChild);
+      }
+      
+      // Create new model-viewer
+      const viewer = document.createElement('model-viewer');
+      viewer.setAttribute('src', src);
+      viewer.setAttribute('camera-controls', '');
+      viewer.setAttribute('auto-rotate', '');
+      viewer.setAttribute('shadow-intensity', '1');
+      
+      modelContainer.appendChild(viewer);
+      
+      viewer.addEventListener('load', () => {
+        loading.style.display = 'none';
+        console.log('Model loaded successfully!');
+      });
+      
+      viewer.addEventListener('error', (error) => {
+        showError(`Error loading model: ${error.message || 'Unknown error'}`);
+        console.error('Model viewer error:', error);
+      });
+    }
+    
+    // Try proxy loading
+    function tryProxy() {
+      loadingText.textContent = 'Loading via proxy...';
+      errorElement.style.display = 'none';
+      
+      const proxyUrl = `/api/model-proxy?url=${encodeURIComponent(modelUrl)}`;
+      createModelViewer(proxyUrl);
+    }
+    
+    // Try iframe loading
+    function tryIframe() {
+      loadingText.textContent = 'Loading via iframe...';
+      errorElement.style.display = 'none';
+      
+      // Remove any existing viewer
+      while (modelContainer.firstChild) {
+        modelContainer.removeChild(modelContainer.firstChild);
+      }
+      
+      const iframe = document.createElement('iframe');
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.style.border = 'none';
+      
+      const iframeHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"><\/script>
+          <style>
+            body, html { margin: 0; padding: 0; width: 100%; height: 100%; }
+            model-viewer { width: 100%; height: 100%; background-color: #f5f5f5; }
+          </style>
+        </head>
+        <body>
+          <model-viewer src="${modelUrl}" camera-controls auto-rotate shadow-intensity="1"></model-viewer>
+        </body>
+        </html>
+      `;
+      
+      const blob = new Blob([iframeHtml], {type: 'text/html'});
+      iframe.src = URL.createObjectURL(blob);
+      
+      modelContainer.appendChild(iframe);
+      setTimeout(() => loading.style.display = 'none', 5000);
+    }
+    
+    // Try alternative loading method
+    function tryAlternative() {
+      setTimeout(() => {
+        tryProxy();
+      }, 1000);
+    }
+    
+    // Setup event handlers
+    downloadBtn.addEventListener('click', () => {
+      if (objectUrl) {
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = 'model.glb';
+        a.click();
+      } else {
+        alert('Model hasn\'t been downloaded yet');
+      }
+    });
+    
+    tryProxyBtn.addEventListener('click', tryProxy);
+    tryIframeBtn.addEventListener('click', tryIframe);
+    
+    // Start downloading
+    downloadModel();
+  </script>
+</body>
+</html> 

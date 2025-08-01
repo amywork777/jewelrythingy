@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tripo Model Viewer Dashboard</title>
+  <style>
+    :root {
+      --primary: #0ea5e9;
+      --primary-dark: #0284c7;
+      --error: #ef4444;
+      --success: #10b981;
+      --warning: #f59e0b;
+    }
+    
+    body, html {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+      line-height: 1.5;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding: 20px;
+      background-color: #f1f5f9;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    .header h1 {
+      margin: 0;
+      color: var(--primary-dark);
+      font-size: 2.5rem;
+    }
+    
+    .header p {
+      margin-top: 10px;
+      color: #64748b;
+      font-size: 1.2rem;
+    }
+    
+    .url-input {
+      display: flex;
+      margin-bottom: 30px;
+      gap: 10px;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    .url-input input {
+      flex: 1;
+      padding: 12px 15px;
+      border: 2px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+    
+    .url-input button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 12px 20px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .url-input button:hover {
+      background-color: var(--primary-dark);
+    }
+    
+    .viewers {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 20px;
+    }
+    
+    .viewer-card {
+      background-color: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .viewer-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .viewer-header {
+      background-color: var(--primary);
+      color: white;
+      padding: 15px;
+    }
+    
+    .viewer-header h3 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+    
+    .viewer-body {
+      padding: 20px;
+      min-height: 120px;
+    }
+    
+    .viewer-body p {
+      margin-top: 0;
+      color: #4b5563;
+      margin-bottom: 20px;
+    }
+    
+    .tag {
+      display: inline-block;
+      background-color: #e2e8f0;
+      color: #475569;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+    
+    .tag.cors {
+      background-color: #bfdbfe;
+      color: #1e40af;
+    }
+    
+    .tag.server {
+      background-color: #c7d2fe;
+      color: #4338ca;
+    }
+    
+    .tag.client {
+      background-color: #bbf7d0;
+      color: #166534;
+    }
+    
+    .tag.download {
+      background-color: #fef3c7;
+      color: #92400e;
+    }
+    
+    .viewer-footer {
+      padding: 15px;
+      background-color: #f8fafc;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .viewer-btn {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 0.875rem;
+      display: inline-block;
+      transition: background-color 0.2s;
+    }
+    
+    .viewer-btn:hover {
+      background-color: var(--primary-dark);
+    }
+    
+    .viewer-btn-secondary {
+      background-color: #e2e8f0;
+      color: #475569;
+    }
+    
+    .viewer-btn-secondary:hover {
+      background-color: #cbd5e1;
+    }
+    
+    .emergency {
+      background-color: var(--error);
+    }
+    
+    .emergency:hover {
+      background-color: #dc2626;
+    }
+    
+    .success {
+      background-color: var(--success);
+    }
+    
+    .success:hover {
+      background-color: #059669;
+    }
+    
+    .footer {
+      margin-top: 50px;
+      text-align: center;
+      color: #64748b;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Tripo Model Viewer Dashboard</h1>
+      <p>Multiple solutions to view Tripo 3D models with different approaches for handling CORS</p>
+    </div>
+    
+    <div class="url-input">
+      <input type="text" id="model-url" placeholder="Paste your Tripo model URL here to use with any viewer" value="https://tripo-data.rg1.data.tripo3d.com/tcli_9270104da6f34a46a2479869119b834d/20250401/fd0490cc-da23-4f18-9be6-4a35c6ee2e05/tripo_base_model_fd0490cc-da23-4f18-9be6-4a35c6ee2e05.glb?Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly90cmlwby1kYXRhLnJnMS5kYXRhLnRyaXBvM2QuY29tL3RjbGlfOTI3MDEwNGRhNmYzNGE0NmEyNDc5ODY5MTE5YjgzNGQvMjAyNTA0MDEvZmQwNDkwY2MtZGEyMy00ZjE4LTliZTYtNGEzNWM2ZWUyZTA1L3RyaXBvX2Jhc2VfbW9kZWxfZmQwNDkwY2MtZGEyMy00ZjE4LTliZTYtNGEzNWM2ZWUyZTA1LmdsYiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc0MzU1MjAwMH19fV19&Signature=L5WCnYYv5evcM3OLtjgElukHai~F~ELbx7n~xFTD5OE8iS6c-1Vw-Xco2XQ2gTpOEt2MJlm7s4C-IRIkrUg3j1z9TeGX-FVVZG1DQxuH6VhQ84YcIYQ~x4fk1FtR9w7~NLJBlUSzZmyFK3jtiit29mboYhi0NBGO0w8YIoTuYxc4Ef0XEBl46G-d7nCquJHTNja~F~TbzHovdAK~RrAMyF4bLEUysfimktuJa-X1l7-LALxCQrZha3sHtVVHwsm09hjMeXd5nfPKpEFc7iZyr~H71~agks7lKI8PYTQugbBXJfKdTBkU5LRIOPvcVKS230c-v~0UidpEPg3G0tunMA__&Key-Pair-Id=K1676C64NMVM2J">
+      <button id="open-all-btn">Open All Viewers</button>
+    </div>
+    
+    <div class="viewers">
+      <!-- Emergency Viewer -->
+      <div class="viewer-card">
+        <div class="viewer-header" style="background-color: #ef4444;">
+          <h3>🚨 Emergency Model Viewer</h3>
+        </div>
+        <div class="viewer-body">
+          <p>Advanced CORS bypass techniques with 4 different loading methods. Most comprehensive solution that tries everything.</p>
+          <div class="tags">
+            <span class="tag client">Client-only</span>
+            <span class="tag cors">CORS Bypass</span>
+            <span class="tag download">Download</span>
+          </div>
+        </div>
+        <div class="viewer-footer">
+          <a href="#" class="viewer-btn emergency" id="open-emergency">Open Emergency Viewer</a>
+        </div>
+      </div>
+      
+      <!-- Super Simple Viewer -->
+      <div class="viewer-card">
+        <div class="viewer-header" style="background-color: #3b82f6;">
+          <h3>⚡ Super Simple Viewer</h3>
+        </div>
+        <div class="viewer-body">
+          <p>Simplified approach with XHR download and multiple fallback methods. Clean UI with easy switch between methods.</p>
+          <div class="tags">
+            <span class="tag client">Client-only</span>
+            <span class="tag cors">CORS Bypass</span>
+            <span class="tag download">Download</span>
+          </div>
+        </div>
+        <div class="viewer-footer">
+          <a href="#" class="viewer-btn" style="background-color: #3b82f6;" id="open-super-simple">Open Super Simple</a>
+        </div>
+      </div>
+      
+      <!-- Absolute Minimum -->
+      <div class="viewer-card">
+        <div class="viewer-header" style="background-color: #10b981;">
+          <h3>🔍 Absolute Minimum</h3>
+        </div>
+        <div class="viewer-body">
+          <p>Just the raw essentials - direct model loading with no extras. Smallest possible viewer with minimal code.</p>
+          <div class="tags">
+            <span class="tag client">Client-only</span>
+            <span class="tag">Minimal</span>
+          </div>
+        </div>
+        <div class="viewer-footer">
+          <a href="#" class="viewer-btn" style="background-color: #10b981;" id="open-absolute-minimum">Open Minimal</a>
+        </div>
+      </div>
+      
+      <!-- Direct Fetch -->
+      <div class="viewer-card">
+        <div class="viewer-header">
+          <h3>Direct Fetch</h3>
+        </div>
+        <div class="viewer-body">
+          <p>Uses XHR to download model and convert to local blob URL. Shows download progress and allows model download.</p>
+          <div class="tags">
+            <span class="tag client">Client-only</span>
+            <span class="tag cors">CORS Bypass</span>
+            <span class="tag download">Download</span>
+          </div>
+        </div>
+        <div class="viewer-footer">
+          <a href="#" class="viewer-btn" id="open-direct-fetch">Open Direct Fetch</a>
+        </div>
+      </div>
+      
+      <!-- Standalone Viewer -->
+      <div class="viewer-card">
+        <div class="viewer-header">
+          <h3>Standalone Viewer</h3>
+        </div>
+        <div class="viewer-body">
+          <p>Simple data URL approach with iframe isolation. Embeds the model viewer in a data URL to avoid CORS issues.</p>
+          <div class="tags">
+            <span class="tag client">Client-only</span>
+            <span class="tag cors">CORS Bypass</span>
+          </div>
+        </div>
+        <div class="viewer-footer">
+          <a href="#" class="viewer-btn" id="open-standalone">Open Standalone Viewer</a>
+        </div>
+      </div>
+      
+      <!-- Server Proxy -->
+      <div class="viewer-card">
+        <div class="viewer-header">
+          <h3>Server Proxy</h3>
+        </div>
+        <div class="viewer-body">
+          <p>Uses server-side proxy to fetch and cache the model. Server adds CORS headers and handles authentication.</p>
+          <div class="tags">
+            <span class="tag server">Server-based</span>
+            <span class="tag">Caching</span>
+          </div>
+        </div>
+        <div class="viewer-footer">
+          <a href="#" class="viewer-btn" id="open-proxy">Open Server Proxy</a>
+        </div>
+      </div>
+      
+      <!-- Model Options -->
+      <div class="viewer-card">
+        <div class="viewer-header">
+          <h3>Model Options Hub</h3>
+        </div>
+        <div class="viewer-body">
+          <p>Central hub with links to all viewing options. Use this to explore different solutions for model viewing.</p>
+          <div class="tags">
+            <span class="tag">Hub</span>
+            <span class="tag">All Options</span>
+          </div>
+        </div>
+        <div class="viewer-footer">
+          <a href="/model-options.html" class="viewer-btn">Open Options Hub</a>
+        </div>
+      </div>
+      
+      <!-- Direct Model Page -->
+      <div class="viewer-card">
+        <div class="viewer-header">
+          <h3>React Component</h3>
+        </div>
+        <div class="viewer-body">
+          <p>Server-rendered React component with suspense boundaries. Shows how to embed the model viewer in a React app.</p>
+          <div class="tags">
+            <span class="tag server">Server-based</span>
+            <span class="tag">React</span>
+          </div>
+        </div>
+        <div class="viewer-footer">
+          <a href="#" class="viewer-btn" id="open-direct-model">Open React Viewer</a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>© 2023 Magicai - All viewers are compatible with Tripo 3D models</p>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const modelUrlInput = document.getElementById('model-url');
+      const openAllBtn = document.getElementById('open-all-btn');
+      const openEmergencyBtn = document.getElementById('open-emergency');
+      const openDirectFetchBtn = document.getElementById('open-direct-fetch');
+      const openStandaloneBtn = document.getElementById('open-standalone');
+      const openProxyBtn = document.getElementById('open-proxy');
+      const openDirectModelBtn = document.getElementById('open-direct-model');
+      const openSuperSimpleBtn = document.getElementById('open-super-simple');
+      const openAbsoluteMinimumBtn = document.getElementById('open-absolute-minimum');
+      
+      // Function to get the current model URL
+      function getModelUrl() {
+        return encodeURIComponent(modelUrlInput.value.trim());
+      }
+      
+      // Open emergency viewer
+      openEmergencyBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.open(`/emergency-viewer.html?url=${getModelUrl()}`, '_blank');
+      });
+      
+      // Open super simple viewer
+      openSuperSimpleBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.open(`/super-simple-viewer.html?url=${getModelUrl()}`, '_blank');
+      });
+      
+      // Open absolute minimum viewer
+      openAbsoluteMinimumBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.open(`/absolute-minimum.html?url=${getModelUrl()}`, '_blank');
+      });
+      
+      // Open direct fetch
+      openDirectFetchBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.open(`/direct-fetch.html?url=${getModelUrl()}`, '_blank');
+      });
+      
+      // Open standalone viewer
+      openStandaloneBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.open(`/tripo-standalone.html?url=${getModelUrl()}`, '_blank');
+      });
+      
+      // Open server proxy
+      openProxyBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.open(`/api/model-proxy?url=${getModelUrl()}`, '_blank');
+      });
+      
+      // Open direct model page
+      openDirectModelBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.open(`/direct-model?url=${getModelUrl()}`, '_blank');
+      });
+      
+      // Open all viewers
+      openAllBtn.addEventListener('click', function() {
+        const modelUrl = getModelUrl();
+        
+        // Open each viewer in a new tab
+        window.open(`/emergency-viewer.html?url=${modelUrl}`, '_blank');
+        setTimeout(() => window.open(`/super-simple-viewer.html?url=${modelUrl}`, '_blank'), 200);
+        setTimeout(() => window.open(`/absolute-minimum.html?url=${modelUrl}`, '_blank'), 400);
+        setTimeout(() => window.open(`/direct-fetch.html?url=${modelUrl}`, '_blank'), 600);
+        setTimeout(() => window.open(`/tripo-standalone.html?url=${modelUrl}`, '_blank'), 800);
+        setTimeout(() => window.open(`/api/model-proxy?url=${modelUrl}`, '_blank'), 1000);
+        setTimeout(() => window.open(`/direct-model?url=${modelUrl}`, '_blank'), 1200);
+      });
+    });
+  </script>
+</body>
+</html> 

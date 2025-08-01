@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Absolute Minimum Viewer</title>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100vh;
+    }
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      background-color: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <model-viewer
+    id="viewer"
+    camera-controls
+    auto-rotate
+    shadow-intensity="1"
+  ></model-viewer>
+
+  <script>
+    // Get the model URL from the query parameter
+    const params = new URLSearchParams(window.location.search);
+    const modelUrl = params.get('url') || 'https://modelviewer.dev/shared-assets/models/Astronaut.glb';
+    
+    // Set the source directly
+    document.getElementById('viewer').setAttribute('src', modelUrl);
+    
+    // Log any errors
+    document.getElementById('viewer').addEventListener('error', (event) => {
+      console.error('Error loading model:', event);
+    });
+  </script>
+</body>
+</html> 

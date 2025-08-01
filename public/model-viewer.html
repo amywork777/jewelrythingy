@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="credentialless">
+  <title>3D Model Viewer</title>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js" crossorigin="anonymous"></script>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      background-color: #f5f5f5;
+    }
+    .error {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #e11d48;
+      height: 100%;
+      text-align: center;
+      padding: 1rem;
+    }
+    .loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: white;
+    }
+    .download-btn {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background-color: #06b6d4; /* primary color */
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-family: sans-serif;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .download-btn:hover {
+      background-color: #0891b2;
+    }
+    .spin {
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div id="viewer-container">
+    <model-viewer 
+      id="model-viewer"
+      camera-controls
+      auto-rotate
+      shadow-intensity="1" 
+      shadow-softness="0.5"
+      exposure="0.8"
+      ar
+      ar-modes="webxr scene-viewer"
+      orientation="0 0 0"
+      environment-image="neutral"
+      crossorigin="anonymous"
+      loading="eager"
+      reveal="auto"
+      onload="document.getElementById('loading').style.display = 'none';"
+      onerror="handleError()"
+    >
+      <div id="loading" class="loading">
+        <div style="text-align: center;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="spin">
+            <path opacity="0.2" fill-rule="evenodd" clip-rule="evenodd" d="M12 19C15.866 19 19 15.866 19 12C19 8.13401 15.866 5 12 5C8.13401 5 5 8.13401 5 12C5 15.866 8.13401 19 12 19ZM12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" fill="white"/>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 5C8.13401 5 5 8.13401 5 12H2C2 6.47715 6.47715 2 12 2V5Z" fill="white"/>
+          </svg>
+          <div style="margin-top: 12px;">Loading 3D Model...</div>
+        </div>
+      </div>
+      <div id="error" class="error" style="display: none;">
+        Error loading 3D model. Please try again with a different prompt or image.
+      </div>
+      <button slot="ar-button" class="download-btn">
+        View in AR
+      </button>
+    </model-viewer>
+  </div>
+
+  <script>
+    function getUrlParam(param) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(param);
+    }
+
+    function handleError() {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('error').style.display = 'flex';
+      console.error('Error loading model');
+    }
+
+    // Get model URL from query parameter
+    let modelUrl = getUrlParam('url');
+    
+    // Convert to proxied URL if needed
+    if (modelUrl) {
+      // If this is not already a proxy URL, convert it
+      if (!modelUrl.startsWith('/api/model-proxy')) {
+        // For external URLs, use our proxy
+        if (modelUrl.startsWith('http')) {
+          modelUrl = `/api/model-proxy?url=${encodeURIComponent(modelUrl)}`;
+        }
+      }
+      
+      document.getElementById('model-viewer').setAttribute('src', modelUrl);
+      
+      // Preload the model
+      const preloadLink = document.createElement('link');
+      preloadLink.rel = 'preload';
+      preloadLink.href = modelUrl;
+      preloadLink.as = 'fetch';
+      preloadLink.crossOrigin = 'anonymous';
+      document.head.appendChild(preloadLink);
+    } else {
+      handleError();
+    }
+  </script>
+</body>
+</html> 

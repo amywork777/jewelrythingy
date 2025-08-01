@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups">
+  <meta http-equiv="Cross-Origin-Embedder-Policy" content="credentialless">
+  <title>Browser Tripo Model Viewer</title>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js" crossorigin="anonymous"></script>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    .header {
+      background-color: #0c4a6e;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    .input-panel {
+      width: 300px;
+      background-color: #f0f9ff;
+      padding: 1rem;
+      overflow-y: auto;
+    }
+    .viewer-container {
+      flex: 1;
+      background-color: #000;
+      position: relative;
+    }
+    model-viewer {
+      width: 100%;
+      height: 100%;
+    }
+    .loading {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      z-index: 10;
+    }
+    .error {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: #f43f5e;
+      text-align: center;
+      padding: 2rem;
+      z-index: 10;
+    }
+    .hidden {
+      display: none;
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin-bottom: 1rem;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 0.5rem;
+    }
+    button {
+      background-color: #0284c7;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      font-weight: 500;
+      margin-bottom: 1rem;
+      width: 100%;
+    }
+    button:hover {
+      background-color: #0369a1;
+    }
+    .info {
+      margin-top: 1rem;
+      font-size: 14px;
+      color: #334155;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: #06b6d4;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Browser-Only Tripo Model Viewer</h1>
+    </div>
+    
+    <div class="main">
+      <div class="input-panel">
+        <h3>Load Tripo Model</h3>
+        <textarea id="modelUrl" placeholder="Paste your Tripo model URL here..."></textarea>
+        <button id="loadModelBtn">Load Model</button>
+        
+        <div class="info">
+          <h4>How to Use:</h4>
+          <ol>
+            <li>Paste your Tripo model URL in the textarea</li>
+            <li>Click the "Load Model" button</li>
+            <li>Wait for the model to load</li>
+            <li>Use mouse to rotate and scroll to zoom</li>
+          </ol>
+          <p>This viewer loads the model directly in your browser without server processing, which may help with CORS issues.</p>
+        </div>
+      </div>
+      
+      <div class="viewer-container">
+        <model-viewer 
+          id="viewer" 
+          camera-controls 
+          auto-rotate
+          shadow-intensity="1"
+          shadow-softness="0.5"
+          exposure="0.8"
+          environment-image="neutral"
+          crossorigin="anonymous"
+        ></model-viewer>
+        
+        <div id="loading" class="loading hidden">
+          <div class="spinner"></div>
+          <div>Loading model...</div>
+        </div>
+        
+        <div id="error" class="error hidden">
+          <h2>Error Loading Model</h2>
+          <p id="error-message">Failed to load the model.</p>
+          <button id="tryAgainBtn" style="width: auto; margin-top: 1rem;">Try Again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const viewer = document.getElementById('viewer');
+      const loading = document.getElementById('loading');
+      const error = document.getElementById('error');
+      const errorMessage = document.getElementById('error-message');
+      const modelUrlInput = document.getElementById('modelUrl');
+      const loadModelBtn = document.getElementById('loadModelBtn');
+      const tryAgainBtn = document.getElementById('tryAgainBtn');
+      
+      // Check if there's a URL parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlParam = urlParams.get('url');
+      if (urlParam) {
+        modelUrlInput.value = decodeURIComponent(urlParam);
+        // Auto-load the model
+        setTimeout(() => loadModelBtn.click(), 500);
+      }
+      
+      function showLoading() {
+        loading.classList.remove('hidden');
+        error.classList.add('hidden');
+      }
+      
+      function hideLoading() {
+        loading.classList.add('hidden');
+      }
+      
+      function showError(message) {
+        error.classList.remove('hidden');
+        loading.classList.add('hidden');
+        errorMessage.textContent = message;
+      }
+      
+      function loadModel(url) {
+        // Show loading indicator
+        showLoading();
+        
+        try {
+          // Set model URL and handle events
+          viewer.setAttribute('src', url);
+          
+          viewer.addEventListener('load', function onLoad() {
+            hideLoading();
+            viewer.removeEventListener('load', onLoad);
+          });
+          
+          viewer.addEventListener('error', function onError(e) {
+            console.error('Error loading model:', e);
+            showError('Failed to load the model. The URL may have expired or there might be CORS restrictions.');
+            viewer.removeEventListener('error', onError);
+          });
+        } catch (err) {
+          console.error('Error setting model URL:', err);
+          showError(err.message || 'Failed to load the model');
+        }
+      }
+      
+      loadModelBtn.addEventListener('click', function() {
+        const url = modelUrlInput.value.trim();
+        if (!url) {
+          showError('Please enter a model URL');
+          return;
+        }
+        
+        loadModel(url);
+        
+        // Update URL with the model URL parameter for sharing
+        const shareUrl = new URL(window.location.href);
+        shareUrl.searchParams.set('url', url);
+        window.history.pushState({}, '', shareUrl);
+      });
+      
+      tryAgainBtn.addEventListener('click', function() {
+        const url = modelUrlInput.value.trim();
+        if (url) {
+          loadModel(url);
+        } else {
+          error.classList.add('hidden');
+        }
+      });
+    });
+  </script>
+</body>
+</html> 
