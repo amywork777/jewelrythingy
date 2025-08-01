@@ -41,6 +41,14 @@ export async function POST(request: NextRequest) {
 🎯 **APPROACH: Detailed Character Capture with Manufacturing Focus**
 Transform any photo into a charming, detailed yet manufacturable representation that truly captures the unique character and essence of the subject. Never reject - always find a way to create something beautiful and castable.
 
+**TRANSPARENT BACKGROUND REQUIREMENT - CRITICAL:**
+- Create the charm with a COMPLETELY TRANSPARENT BACKGROUND
+- NO background elements, colors, or textures
+- The charm should appear to float with nothing behind it
+- Only the charm itself should be visible
+- Perfect transparency around all edges
+- Clean cutout with transparent background for jewelry use
+
 **3D CHARM REQUIREMENTS - MUST BE FULLY 3D:**
 - Create a FULLY 3D sculptural charm with significant depth and dimension
 - NOT 2.5D or relief - must be a complete 3D sculpture
@@ -136,14 +144,16 @@ Transform any photo into a charming, detailed yet manufacturable representation 
     
     console.log('File object created:', imageFile.name, imageFile.type, imageFile.size);
 
-    // Use gpt-image-1 with images.edit endpoint
+    // Use gpt-image-1 with images.edit endpoint with type assertion for newer parameters
     const response = await openai.images.edit({
       model: "gpt-image-1",
       image: imageFile,
       prompt: enhancementPrompt,
       size: "1024x1024",
       n: 1,
-    });
+      quality: "high",             // High quality for best transparency results
+      background: "transparent"    // Enable transparent background
+    } as any);
 
     console.log('gpt-image-1 Response keys:', Object.keys(response));
     console.log('Response data length:', response.data?.length);
@@ -181,6 +191,9 @@ Transform any photo into a charming, detailed yet manufacturable representation 
       model: "gpt-image-1",
       size: "1024x1024",
       responseType: enhancedImageUrl ? "url" : "base64",
+      background: "transparent",
+      quality: "high",
+      format: "png",
       timestamp: new Date().toISOString()
     });
 
