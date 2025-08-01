@@ -20,25 +20,26 @@ const cleanDescription = (description: string): string => {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("🔍 [generate-model] Received model generation request");
+    console.log("[generate-model] Received model generation request");
     
-    const body = await request.json()
-    const { type, prompt, imageToken } = body
+    const { type, prompt, imageToken } = await request.json();
     
-    console.log(`🔍 [generate-model] Request type: ${type}, imageToken: ${imageToken ? "provided" : "not provided"}`);
-    console.log(`🔍 [generate-model] Prompt: "${prompt}"`);
-
-    // If prompt is very long (likely from OpenAI Vision API), clean it up
-    const processedPrompt = prompt && prompt.length > 200 
-      ? cleanDescription(prompt)
-      : prompt;
+    console.log(`[generate-model] Request type: ${type}, imageToken: ${imageToken ? "provided" : "not provided"}`);
+    console.log(`[generate-model] Prompt: "${prompt}"`);
     
-    console.log(`🔍 [generate-model] Original prompt length: ${prompt?.length || 0}`);
-    console.log(`🔍 [generate-model] Processed prompt length: ${processedPrompt?.length || 0}`);
-    console.log(`🔍 [generate-model] Processed prompt: "${processedPrompt}"`);
+    // Clean and process the prompt
+    const cleanPrompt = (text: string): string => {
+      if (!text) return "";
+      return text.replace(/undefined/g, "").trim();
+    };
+    
+    const processedPrompt = cleanPrompt(prompt);
+    console.log(`[generate-model] Original prompt length: ${prompt?.length || 0}`);
+    console.log(`[generate-model] Processed prompt length: ${processedPrompt?.length || 0}`);
+    console.log(`[generate-model] Processed prompt: "${processedPrompt}"`);
     
     if (processedPrompt !== prompt) {
-      console.log(`🔍 [generate-model] Prompt was processed/cleaned`);
+      console.log(`[generate-model] Prompt was processed/cleaned`);
     }
     
     let requestBody
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
         pbr: false, // Disable PBR
         auto_size: true, // Enable auto-sizing for better proportions
       }
-      console.log(`🔍 [generate-model] Using text-to-model generation strategy with prompt: "${processedPrompt}"`);
+      console.log(`[generate-model] Using text-to-model generation strategy with prompt: "${processedPrompt}"`);
     } else if (type === "image" && imageToken) {
       // Image to model - without textures - only if explicitly requested and no good text prompt
       requestBody = {
@@ -69,13 +70,13 @@ export async function POST(request: NextRequest) {
         pbr: false, // Disable PBR
         auto_size: true, // Enable auto-sizing for better proportions
       }
-      console.log(`🔍 [generate-model] Using image-to-model generation strategy with token: ${imageToken}`);
+      console.log(`[generate-model] Using image-to-model generation strategy with token: ${imageToken}`);
     } else {
       console.error(`❌ [generate-model] Invalid generation type or missing required parameters: type=${type}, promptLength=${processedPrompt?.length || 0}, imageToken=${imageToken ? "exists" : "missing"}`);
       return NextResponse.json({ error: "Invalid generation type or missing required parameters" }, { status: 400 })
     }
 
-    console.log(`🔍 [generate-model] Sending request to Tripo API:`, requestBody);
+    console.log(`[generate-model] Sending request to Tripo API:`, requestBody);
 
     // Call Tripo API to start model generation
     const tripoResponse = await fetch("https://api.tripo3d.ai/v2/openapi/task", {
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(requestBody),
     })
 
-    console.log(`🔍 [generate-model] Tripo API response status: ${tripoResponse.status} ${tripoResponse.statusText}`);
+    console.log(`[generate-model] Tripo API response status: ${tripoResponse.status} ${tripoResponse.statusText}`);
 
     if (!tripoResponse.ok) {
       const errorData = await tripoResponse.json()

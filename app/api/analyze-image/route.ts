@@ -19,7 +19,7 @@ function getOpenAIClient() {
 // }
 
 export async function POST(request: Request) {
-  console.log("🔍 [SERVER] /api/analyze-image endpoint called");
+  console.log("[SERVER] /api/analyze-image endpoint called");
   
   try {
     // Add CORS headers for all responses to ensure this works when embedded on fishcad.com
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     };
     
     const url = new URL(request.url);
-    console.log(`🔍 [SERVER] Request from hostname: ${url.hostname}`);
+    console.log(`[SERVER] Request from hostname: ${url.hostname}`);
     
     if (!process.env.OPENAI_API_KEY) {
       console.error("❌ [SERVER] OPENAI_API_KEY not found in environment variables");
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
         ? `Look at this image and create a simple, clear description (no more than 3-4 sentences) of what 3D model should be created from it. ${textPrompt}` 
         : "Look at this image and create a simple, clear description (no more than 3-4 sentences) of what 3D model should be created from it. Focus on the main object or character.";
       
-      console.log("🔍 [SERVER] Calling OpenAI Vision API...");
+      console.log("[SERVER] Calling OpenAI Vision API...");
       
       // Call OpenAI Vision API with instructions for a concise description
       try {
@@ -173,7 +173,7 @@ export async function POST(request: Request) {
 
 // Keep the OPTIONS method handler for CORS preflight requests
 export async function OPTIONS(request: Request) {
-  console.log("🔍 [SERVER] /api/analyze-image OPTIONS request received");
+  console.log("[SERVER] /api/analyze-image OPTIONS request received");
   return NextResponse.json(
     { success: true },
     { 

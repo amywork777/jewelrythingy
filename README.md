@@ -6,7 +6,7 @@ A web application that creates detailed 3D models from text descriptions or imag
 
 - **Text to 3D**: Generate 3D models from text descriptions
 - **Image to 3D**: Generate 3D models from uploaded images
-- **AI-Enhanced Image**: Use AI to analyze images and generate enhanced 3D models
+- **Manufacturability-Enhanced Image**: Use optimization to analyze images and generate manufacturing-enhanced 3D models
 - **Voice Input**: Record voice descriptions for text inputs
 - **STL Download**: Convert and download models in STL format for 3D printing
 - **3D Preview**: View the generated STL models directly in the browser
@@ -21,7 +21,7 @@ This project requires the following environment variables:
 
 ### Optional
 
-- `OPENAI_API_KEY`: API key for OpenAI (required for the AI-Enhanced Image feature)
+- `OPENAI_API_KEY`: API key for OpenAI (required for the Manufacturability-Enhanced Image feature)
 
 ## Deployment on Vercel
 
@@ -31,9 +31,9 @@ When deploying to Vercel, make sure to add the environment variables in the Verc
 2. Navigate to the "Environment Variables" section
 3. Add the following environment variables:
    - `TRIPO_API_KEY`: Your Tripo3D API key
-   - `OPENAI_API_KEY`: Your OpenAI API key (if you want to use the AI-Enhanced Image feature)
+   - `OPENAI_API_KEY`: Your OpenAI API key (if you want to use the Manufacturability-Enhanced Image feature)
 
-If the `OPENAI_API_KEY` is not provided, the application will still function, but the AI-Enhanced Image feature will use a simplified fallback mechanism.
+If the `OPENAI_API_KEY` is not provided, the application will still function, but the Manufacturability-Enhanced Image feature will use a simplified fallback mechanism.
 
 ## Local Development
 

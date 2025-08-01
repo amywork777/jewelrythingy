@@ -88,7 +88,7 @@ export function ModelGenerator() {
   const [stlViewerRef, setStlViewerRef] = useState<HTMLDivElement | null>(null)
   const [scaledGeometry, setScaledGeometry] = useState<THREE.BufferGeometry | null>(null)
   
-  // AI Enhancement states
+  // Manufacturability Enhancement states
   const [useAiEnhancement, setUseAiEnhancement] = useState<boolean>(false)
   const [enhancedImageUrl, setEnhancedImageUrl] = useState<string | null>(null)
   const [isEnhancing, setIsEnhancing] = useState<boolean>(false)
@@ -143,7 +143,7 @@ export function ModelGenerator() {
     recalculateWeight();
   }, [recalculateWeight]);
 
-  // AI Image Enhancement function
+  // Manufacturability Image Enhancement function
   const enhanceImageWithAI = useCallback(async (imageFile: File): Promise<string | null> => {
     if (!imageFile) return null;
     
@@ -188,7 +188,7 @@ export function ModelGenerator() {
         
         toast({
           title: "Image Enhanced! Generating 3D Model...",
-          description: "Starting 3D model generation with enhanced image.",
+          description: "Starting 3D model generation with manufacturing-enhanced image.",
         });
         
         return enhanceData.enhancedImageUrl;
@@ -200,7 +200,7 @@ export function ModelGenerator() {
       console.error("Error enhancing image:", error);
       toast({
         title: "Enhancement Failed",
-        description: error instanceof Error ? error.message : "Failed to enhance image. You can still generate with the original image.",
+        description: error instanceof Error ? error.message : "Failed to enhance image for manufacturability. You can still generate with the original image.",
         variant: "destructive",
       });
       return null;
@@ -438,11 +438,11 @@ export function ModelGenerator() {
     try {
       let imageToUse: string | null = null;
       
-      // Step 1: Handle AI Enhancement if enabled
+      // Step 1: Handle Manufacturability Enhancement if enabled
       if (useAiEnhancement && !enhancedImageUrl) {
         toast({
           title: "Enhancing Image",
-          description: "Optimizing your image with AI for better 3D conversion...",
+          description: "Optimizing your image for manufacturability for better 3D conversion...",
         });
         
         const enhanced = await enhanceImageWithAI(selectedFile);
@@ -455,10 +455,9 @@ export function ModelGenerator() {
           return; // Exit here, let the auto-trigger handle 3D generation
         } else {
           // Enhancement failed, ask user if they want to continue with original
-          const continueWithOriginal = window.confirm(
-            "Image enhancement failed. Would you like to continue with the original image?"
-          );
-          if (!continueWithOriginal) {
+          if (confirm(
+            "Image enhancement for manufacturability failed. Would you like to continue with the original image?"
+          )) {
             setStatus("idle");
             return;
           }
@@ -607,17 +606,17 @@ export function ModelGenerator() {
 
   const pollTaskStatus = async (taskId: string, retryCount = 0, maxRetries = 3) => {
     try {
-      // console.log(`🔍 Polling task status for taskId: ${taskId} (attempt: ${retryCount + 1}/${maxRetries + 1})`);
+      // console.log(`Polling task status for taskId: ${taskId} (attempt: ${retryCount + 1}/${maxRetries + 1})`);
       
       // Get the current origin for constructing absolute URLs
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const apiUrl = `${origin}/api/task-status?taskId=${taskId}`;
       
-      // console.log(`🔍 Using API URL: ${apiUrl}`);
+      // console.log(`Using API URL: ${apiUrl}`);
       
       // Try POST method first on retry attempts since GET might be having CORS issues
       const method = retryCount > 0 ? 'POST' : 'GET';
-      // console.log(`🔍 Using HTTP method: ${method}`);
+      // console.log(`Using HTTP method: ${method}`);
       
       const response = await fetch(apiUrl, {
         method: method,
@@ -740,8 +739,13 @@ export function ModelGenerator() {
               if (blob) {
                 toast({
                   title: "STL Ready",
-                  description: "Your model is ready to be added to FISHCAD.",
+                  description: "Your model is ready and downloading automatically.",
                 });
+                
+                // Automatically download the STL file
+                setTimeout(() => {
+                  handleDownload();
+                }, 500); // Small delay to ensure UI updates
               }
             })
             .catch(() => {
@@ -1180,11 +1184,11 @@ export function ModelGenerator() {
               <div>
                 <p className="text-sm font-medium text-gray-700 mb-2">Generate from Image:</p>
                 
-                {/* AI Enhancement Toggle */}
+                {/* Manufacturability Enhancement Toggle */}
                 <div className="mb-3 p-2 bg-blue-50 rounded-lg border">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-medium text-blue-800">🤖 AI Enhancement</p>
+                      <p className="text-xs font-medium text-blue-800">Manufacturability Enhancement</p>
                       <p className="text-xs text-blue-600">Optimize image for jewelry 3D conversion</p>
                     </div>
                     <Button
@@ -1223,7 +1227,7 @@ export function ModelGenerator() {
                             alt="Original"
                             className="max-h-[60px] max-w-full object-contain rounded-lg border"
                           />
-                          <div className="text-xs text-green-600 font-medium">✨ AI Enhanced:</div>
+                          <div className="text-xs text-green-600 font-medium">Manufacturing Enhanced:</div>
                           <img
                             src={enhancedImageUrl}
                             alt="Enhanced"
@@ -1239,7 +1243,7 @@ export function ModelGenerator() {
                           />
                           <div className="flex items-center justify-center gap-2">
                             <div className="h-3 w-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-xs text-blue-600">Enhancing with AI...</span>
+                            <span className="text-xs text-blue-600">Enhancing...</span>
                           </div>
                         </div>
                       ) : (

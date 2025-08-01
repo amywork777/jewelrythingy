@@ -619,7 +619,7 @@ export function ModelGenerator() {
             
           toast({
             title: "Image Analysis Unavailable",
-            description: "Using direct prompt instead. The AI enhancement feature requires additional setup.",
+            description: "Using direct prompt instead. The manufacturability enhancement feature requires additional setup.",
           });
         }
       } catch (error) {
@@ -756,17 +756,17 @@ export function ModelGenerator() {
 
   const pollTaskStatus = async (taskId: string, retryCount = 0, maxRetries = 3) => {
     try {
-      // console.log(`🔍 Polling task status for taskId: ${taskId} (attempt: ${retryCount + 1}/${maxRetries + 1})`);
+      // console.log(`[Polling task status for taskId: ${taskId} (attempt: ${retryCount + 1}/${maxRetries + 1})`);
       
       // Get the current origin for constructing absolute URLs
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
       const apiUrl = `${origin}/api/task-status?taskId=${taskId}`;
       
-      // console.log(`🔍 Using API URL: ${apiUrl}`);
+      // console.log(`Using API URL: ${apiUrl}`);
       
       // Try POST method first on retry attempts since GET might be having CORS issues
       const method = retryCount > 0 ? 'POST' : 'GET';
-      // console.log(`🔍 Using HTTP method: ${method}`);
+      // console.log(`Using HTTP method: ${method}`);
       
       const response = await fetch(apiUrl, {
         method: method,

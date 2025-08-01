@@ -15,7 +15,7 @@ async function handleTaskStatus(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const taskId = searchParams.get("taskId")
 
-    // console.log(`🔍 [task-status] Checking status for task ID: ${taskId}`);
+    // console.log(`[task-status] Checking status for task ID: ${taskId}`);
     
     if (!taskId) {
       // console.error(`❌ [task-status] No task ID provided in request`);
@@ -69,7 +69,7 @@ async function handleTaskStatus(request: NextRequest) {
       throw error;
     });
 
-    // console.log(`🔍 [task-status] Tripo API status response: ${tripoResponse.status} ${tripoResponse.statusText}`);
+    // console.log(`[task-status] Tripo API status response: ${tripoResponse.status} ${tripoResponse.statusText}`);
     
     if (!tripoResponse.ok) {
       // Try to get error details
@@ -134,7 +134,7 @@ async function handleTaskStatus(request: NextRequest) {
     
     const taskData = data.data
     
-    // console.log(`🔍 [task-status] Task status: ${taskData.status}, progress: ${taskData.progress || 0}%`);
+    // console.log(`[task-status] Task status: ${taskData.status}, progress: ${taskData.progress || 0}%`);
     
     // Extract model URLs for completed tasks
     let finalModelUrl = null;
@@ -145,8 +145,8 @@ async function handleTaskStatus(request: NextRequest) {
       finalModelUrl = taskData.output.model || null;
       baseModelUrl = taskData.output.base_model || null;
       
-      // console.log(`🔍 [task-status] Final model URL: ${finalModelUrl || 'not available'}`);
-      // console.log(`🔍 [task-status] Base model URL: ${baseModelUrl || 'not available'}`);
+      // console.log(`[task-status] Final model URL: ${finalModelUrl || 'not available'}`);
+      // console.log(`[task-status] Base model URL: ${baseModelUrl || 'not available'}`);
       
       // Use base_model if available and model isn't, or use whichever is available
       if (!finalModelUrl && baseModelUrl) {
@@ -170,7 +170,7 @@ async function handleTaskStatus(request: NextRequest) {
       renderedImage: taskData.status === "success" ? taskData.output?.rendered_image : null,
     }
     
-    // console.log(`🔍 [task-status] Sending response:`, response);
+    // console.log(`[task-status] Sending response:`, response);
 
     return NextResponse.json(response, { headers: corsHeaders });
   } catch (error) {
@@ -189,19 +189,19 @@ async function handleTaskStatus(request: NextRequest) {
 
 // GET method handler
 export async function GET(request: NextRequest) {
-  // console.log("🔍 [task-status] GET request received");
+  // console.log("[task-status] GET request received");
   return handleTaskStatus(request);
 }
 
 // POST method handler (same functionality, different HTTP method for compatibility)
 export async function POST(request: NextRequest) {
-  // console.log("🔍 [task-status] POST request received");
+  // console.log("[task-status] POST request received");
   return handleTaskStatus(request);
 }
 
 // HEAD method handler (for preflight/CORS)
 export async function HEAD(request: NextRequest) {
-  // console.log("🔍 [task-status] HEAD request received");
+  // console.log("[task-status] HEAD request received");
   return new NextResponse(null, { 
     status: 200, 
     headers: corsHeaders
@@ -210,7 +210,7 @@ export async function HEAD(request: NextRequest) {
 
 // OPTIONS method handler for CORS preflight requests
 export async function OPTIONS(request: Request) {
-  // console.log("🔍 [task-status] OPTIONS request received");
+  // console.log("[task-status] OPTIONS request received");
   return NextResponse.json(
     { success: true },
     { 

@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     const enhancementPrompt = `Create a beautiful, detailed custom charm that captures the unique character and essence of the subject in the reference photo.
 
-🎯 **APPROACH: Detailed Character Capture with Manufacturing Focus**
+**APPROACH: Detailed Character Capture with Manufacturing Focus**
 Transform any photo into a charming, detailed yet manufacturable representation that truly captures the unique character and essence of the subject. Never reject - always find a way to create something beautiful and castable.
 
 **TRANSPARENT BACKGROUND REQUIREMENT - CRITICAL:**
@@ -120,7 +120,7 @@ Transform any photo into a charming, detailed yet manufacturable representation 
 - Show their character through pose, expression, and distinctive features
 - Adapt approach based on subject type (person, animal, object, etc.)
 
-🎯 **GOAL**: Create a detailed, fully 3D charm that captures this specific subject's unique character and essence while being manufacturable. Always succeed - transform any photo into beautiful, characterful jewelry.
+**GOAL**: Create a detailed, fully 3D charm that captures this specific subject's unique character and essence while being manufacturable. Always succeed - transform any photo into beautiful, characterful jewelry.
 
 **IMPORTANT**: Never reject a photo. Always simplify complex features into manufacturable forms while preserving character. Focus on creating beautiful, detailed, fully 3D, single-color gold jewelry that celebrates the subject's unique essence.`;
 
