@@ -87,6 +87,12 @@ export function ModelGenerator() {
   const [stlUrl, setStlUrl] = useState<string | null>(null)
   const [stlViewerRef, setStlViewerRef] = useState<HTMLDivElement | null>(null)
   const [scaledGeometry, setScaledGeometry] = useState<THREE.BufferGeometry | null>(null)
+  
+  // AI Enhancement states
+  const [useAiEnhancement, setUseAiEnhancement] = useState<boolean>(false)
+  const [enhancedImageUrl, setEnhancedImageUrl] = useState<string | null>(null)
+  const [isEnhancing, setIsEnhancing] = useState<boolean>(false)
+  const [enhancementPrompt, setEnhancementPrompt] = useState<string | null>(null)
 
   const [userConfig, setUserConfig] = useState<{
     limits?: {
@@ -137,6 +143,72 @@ export function ModelGenerator() {
     recalculateWeight();
   }, [recalculateWeight]);
 
+  // AI Image Enhancement function
+  const enhanceImageWithAI = useCallback(async (imageFile: File): Promise<string | null> => {
+    if (!imageFile) return null;
+    
+    setIsEnhancing(true);
+    
+    try {
+      // Convert image file to base64 for OpenAI
+      const convertToBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = error => reject(error);
+        });
+      };
+
+      const base64Image = await convertToBase64(imageFile);
+      
+      // Enhance the image using GPT with base64 data
+      const enhanceResponse = await fetch("/api/enhance-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageData: base64Image,
+          material: selectedMaterial,
+          enhancementType: 'jewelry'
+        }),
+      });
+      
+      if (!enhanceResponse.ok) {
+        const errorData = await enhanceResponse.json();
+        throw new Error(errorData.error || "Failed to enhance image");
+      }
+      
+      const enhanceData = await enhanceResponse.json();
+      
+      if (enhanceData.success && enhanceData.enhancedImageUrl) {
+        setEnhancedImageUrl(enhanceData.enhancedImageUrl);
+        setEnhancementPrompt(enhanceData.prompt);
+        
+        toast({
+          title: "Image Enhanced! Generating 3D Model...",
+          description: "Starting 3D model generation with enhanced image.",
+        });
+        
+        return enhanceData.enhancedImageUrl;
+      } else {
+        throw new Error("Enhancement failed");
+      }
+      
+    } catch (error) {
+      console.error("Error enhancing image:", error);
+      toast({
+        title: "Enhancement Failed",
+        description: error instanceof Error ? error.message : "Failed to enhance image. You can still generate with the original image.",
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setIsEnhancing(false);
+    }
+  }, [selectedMaterial, toast]);
+
   // Function to apply dimension changes in real-time
   const applyDimensionChanges = useCallback(() => {
     if (!stlUrl || !stlViewerRef || !baseDimensions || !targetDimensions) return;
@@ -176,6 +248,10 @@ export function ModelGenerator() {
     setTargetDimensions(null);
     setBaseDimensions(null);
     setScaledGeometry(null);
+    setEnhancedImageUrl(null);
+    setEnhancementPrompt(null);
+    setUseAiEnhancement(false);
+    setIsEnhancing(false);
     
     toast({
       title: "Reset Complete",
@@ -226,7 +302,7 @@ export function ModelGenerator() {
     disabled: status === "uploading" || status === "generating",
   })
 
-  // Check if we can generate (only need image for this simplified version)
+  // Check if we can generate (updated for auto-trigger workflow)
   const canGenerate = selectedFile !== null
 
   // Optional: Handle user limits based on configuration
@@ -360,6 +436,56 @@ export function ModelGenerator() {
     setProgress(0)
     
     try {
+      let imageToUse: string | null = null;
+      
+      // Step 1: Handle AI Enhancement if enabled
+      if (useAiEnhancement && !enhancedImageUrl) {
+        toast({
+          title: "Enhancing Image",
+          description: "Optimizing your image with AI for better 3D conversion...",
+        });
+        
+        const enhanced = await enhanceImageWithAI(selectedFile);
+        if (enhanced) {
+          imageToUse = enhanced;
+          // Auto-trigger 3D generation after enhancement
+          setTimeout(() => {
+            generateFrom3DModel(enhanced);
+          }, 500);
+          return; // Exit here, let the auto-trigger handle 3D generation
+        } else {
+          // Enhancement failed, ask user if they want to continue with original
+          const continueWithOriginal = window.confirm(
+            "Image enhancement failed. Would you like to continue with the original image?"
+          );
+          if (!continueWithOriginal) {
+            setStatus("idle");
+            return;
+          }
+        }
+      } else if (useAiEnhancement && enhancedImageUrl) {
+        // Use existing enhanced image
+        imageToUse = enhancedImageUrl;
+      }
+      
+      await generateFrom3DModel(imageToUse);
+      
+    } catch (error) {
+      console.error("Error generating model:", error)
+      setStatus("error")
+      setIsGenerating(false)
+      toast({
+        title: "Error",
+        description: "Failed to generate model. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Separate function for 3D model generation
+  const generateFrom3DModel = async (imageToUse: string | null) => {
+    try {
+      // Step 2: Upload the image (original or enhanced)
       setStatus("generating")
       setProgress(0)
       setIsGenerating(true)
@@ -367,22 +493,53 @@ export function ModelGenerator() {
       setStlBlob(null)
       setStlUrl(null)
 
-      // First upload the image
-      const formData = new FormData()
-      formData.append("file", selectedFile)
+      let imageToken: string;
+      
+      if (imageToUse) {
+        // If we have an enhanced image URL (data URL), we need to upload it
+        if (imageToUse.startsWith('data:')) {
+          // Convert data URL back to File for upload
+          const response = await fetch(imageToUse);
+          const blob = await response.blob();
+          const file = new File([blob], 'enhanced-image.png', { type: 'image/png' });
+          
+          const formData = new FormData()
+          formData.append("file", file)
 
-      const uploadResponse = await fetch("/api/upload-image", {
-        method: "POST",
-        body: formData,
-      })
+          const uploadResponse = await fetch("/api/upload-image", {
+            method: "POST",
+            body: formData,
+          })
 
-      if (!uploadResponse.ok) {
-        throw new Error("Failed to upload image")
+          if (!uploadResponse.ok) {
+            throw new Error("Failed to upload enhanced image")
+          }
+
+          const uploadData = await uploadResponse.json()
+          imageToken = uploadData.imageToken;
+        } else {
+          // Use enhanced image URL directly
+          imageToken = imageToUse;
+        }
+      } else {
+        // Upload original image
+        const formData = new FormData()
+        formData.append("file", selectedFile!)
+
+        const uploadResponse = await fetch("/api/upload-image", {
+          method: "POST",
+          body: formData,
+        })
+
+        if (!uploadResponse.ok) {
+          throw new Error("Failed to upload image")
+        }
+
+        const uploadData = await uploadResponse.json()
+        imageToken = uploadData.imageToken;
       }
 
-      const uploadData = await uploadResponse.json()
-
-      // Then start the image-to-model generation
+      // Step 3: Generate 3D model from the image
       setStatus("generating")
       const response = await fetch("/api/generate-model", {
         method: "POST",
@@ -391,7 +548,8 @@ export function ModelGenerator() {
         },
         body: JSON.stringify({
           type: "image",
-          imageToken: uploadData.imageToken,
+          imageToken: imageToken,
+          enhanced: useAiEnhancement && enhancedImageUrl !== null,
         }),
       })
 
@@ -405,12 +563,12 @@ export function ModelGenerator() {
       // Start polling for task status
       pollTaskStatus(data.taskId)
     } catch (error) {
-      console.error("Error generating model:", error)
+      console.error("Error in 3D generation:", error)
       setStatus("error")
       setIsGenerating(false)
       toast({
         title: "Error",
-        description: "Failed to generate model. Please try again.",
+        description: "Failed to generate 3D model. Please try again.",
         variant: "destructive",
       })
     }
@@ -1021,6 +1179,32 @@ export function ModelGenerator() {
               {/* Image Upload Area */}
               <div>
                 <p className="text-sm font-medium text-gray-700 mb-2">Generate from Image:</p>
+                
+                {/* AI Enhancement Toggle */}
+                <div className="mb-3 p-2 bg-blue-50 rounded-lg border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-blue-800">🤖 AI Enhancement</p>
+                      <p className="text-xs text-blue-600">Optimize image for jewelry 3D conversion</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant={useAiEnhancement ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setUseAiEnhancement(!useAiEnhancement);
+                        if (!useAiEnhancement) {
+                          setEnhancedImageUrl(null);
+                          setEnhancementPrompt(null);
+                        }
+                      }}
+                      className="text-xs"
+                    >
+                      {useAiEnhancement ? "ON" : "OFF"}
+                    </Button>
+                  </div>
+                </div>
+
                 <div
                   {...getRootProps()}
                   className={`border-2 border-dashed rounded-lg p-2 text-center cursor-pointer transition-colors ${
@@ -1030,35 +1214,71 @@ export function ModelGenerator() {
                   <input {...getInputProps()} />
                   {previewUrl ? (
                     <div className="flex flex-col items-center gap-1">
-                      <img
-                        src={previewUrl}
-                        alt="Preview"
-                        className="max-h-[80px] max-w-full object-contain rounded-lg"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedFile(null);
-                          setPreviewUrl(null);
-                          setModelWeight(0);
-                          setModelDimensions(null);
-                          setTargetDimensions(null);
-                          setBaseDimensions(null);
-                          setScaledGeometry(null);
-                          // Clear the 3D viewer
-                          if (stlViewerRef) {
-                            while (stlViewerRef.firstChild) {
-                              stlViewerRef.removeChild(stlViewerRef.firstChild);
+                      {/* Show both original and enhanced images if enhancement is used */}
+                      {useAiEnhancement && enhancedImageUrl ? (
+                        <div className="w-full space-y-2">
+                          <div className="text-xs text-gray-500 font-medium">Original:</div>
+                          <img
+                            src={previewUrl}
+                            alt="Original"
+                            className="max-h-[60px] max-w-full object-contain rounded-lg border"
+                          />
+                          <div className="text-xs text-green-600 font-medium">✨ AI Enhanced:</div>
+                          <img
+                            src={enhancedImageUrl}
+                            alt="Enhanced"
+                            className="max-h-[80px] max-w-full object-contain rounded-lg border-2 border-green-300"
+                          />
+                        </div>
+                      ) : useAiEnhancement && isEnhancing ? (
+                        <div className="w-full space-y-2">
+                          <img
+                            src={previewUrl}
+                            alt="Preview"
+                            className="max-h-[60px] max-w-full object-contain rounded-lg opacity-50"
+                          />
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="h-3 w-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            <span className="text-xs text-blue-600">Enhancing with AI...</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <img
+                          src={previewUrl}
+                          alt="Preview"
+                          className="max-h-[80px] max-w-full object-contain rounded-lg"
+                        />
+                      )}
+                      
+                      {/* Action buttons */}
+                      <div className="flex gap-1 mt-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFile(null);
+                            setPreviewUrl(null);
+                            setModelWeight(0);
+                            setModelDimensions(null);
+                            setTargetDimensions(null);
+                            setBaseDimensions(null);
+                            setScaledGeometry(null);
+                            setEnhancedImageUrl(null);
+                            setEnhancementPrompt(null);
+                            // Clear the 3D viewer
+                            if (stlViewerRef) {
+                              while (stlViewerRef.firstChild) {
+                                stlViewerRef.removeChild(stlViewerRef.firstChild);
+                              }
                             }
-                          }
-                        }}
-                        className="text-xs h-6 px-2"
-                      >
-                        <Repeat className="h-3 w-3 mr-1" /> Remove
-                      </Button>
+                          }}
+                          className="text-xs h-6 px-2"
+                        >
+                          <Repeat className="h-3 w-3 mr-1" /> Remove
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <div className="py-3">
@@ -1098,6 +1318,8 @@ export function ModelGenerator() {
                           setTargetDimensions(null);
                           setBaseDimensions(null);
                           setScaledGeometry(null);
+                          setEnhancedImageUrl(null);
+                          setEnhancementPrompt(null);
                           // Clear the 3D viewer
                           if (stlViewerRef) {
                             while (stlViewerRef.firstChild) {
@@ -1143,7 +1365,8 @@ export function ModelGenerator() {
                   onClick={handleGenerate}
                   disabled={
                     isGenerating || 
-                    !selectedFile
+                    !selectedFile ||
+                    isEnhancing
                   }
                 >
                   {isGenerating ? (
@@ -1151,10 +1374,20 @@ export function ModelGenerator() {
                       <span className="text-xs mr-2">Generating</span>
                       <div className="h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
                     </>
+                  ) : isEnhancing ? (
+                    <>
+                      <span className="text-xs mr-2">Enhancing Image</span>
+                      <div className="h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                    </>
                   ) : (
                     <>
                       <Wand2 className="h-3 w-3 mr-2" />
-                      <span className="text-xs">Generate 3D Model</span>
+                      <span className="text-xs">
+                        {useAiEnhancement ? 
+                          (enhancedImageUrl ? "Generate from Enhanced Image" : "Enhance & Generate 3D Model") : 
+                          "Generate 3D Model"
+                        }
+                      </span>
                     </>
                   )}
                 </Button>
