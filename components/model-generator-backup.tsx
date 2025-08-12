@@ -81,6 +81,20 @@ export function ModelGenerator() {
   const [stlUrl, setStlUrl] = useState<string | null>(null)
   const [stlViewerRef, setStlViewerRef] = useState<HTMLDivElement | null>(null)
 
+  // Missing state variables
+  const [inputType, setInputType] = useState<"text" | "image" | "image-text">("image")
+  const [textPrompt, setTextPrompt] = useState<string>("")
+  const [isRecording, setIsRecording] = useState<boolean>(false)
+  const [imageTextPrompt, setImageTextPrompt] = useState<string>("")
+  const [selectedImageTextFile, setSelectedImageTextFile] = useState<File | null>(null)
+  const [previewImageTextUrl, setPreviewImageTextUrl] = useState<string | null>(null)
+  const [isRecordingImageText, setIsRecordingImageText] = useState<boolean>(false)
+  const [isAnalyzingImage, setIsAnalyzingImage] = useState<boolean>(false)
+  
+  // Speech recognition refs
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const imageTextRecognitionRef = useRef<SpeechRecognition | null>(null)
+
   const [userConfig, setUserConfig] = useState<{
     limits?: {
       free?: number;
