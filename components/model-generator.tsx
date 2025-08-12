@@ -237,6 +237,66 @@ export function ModelGenerator() {
     applyDimensionChanges();
   }, [applyDimensionChanges]);
 
+  const handleGenerate = async () => {
+    if (!selectedFile) {
+      toast({
+        title: "No Image",
+        description: "Please upload an image to generate a model.",
+        variant: "destructive",
+      })
+      return
+    }
+    
+    // Check if user has reached their limit
+    if (!checkUserLimits()) return;
+    
+    // Notify parent about generation initiation
+    notifyParentAboutGeneration();
+    
+    setStatus("uploading")
+    setProgress(0)
+    
+    try {
+      let imageToUse: string | null = null;
+      
+      // Step 1: Handle Manufacturability Enhancement if enabled
+      if (useAiEnhancement && !enhancedImageUrl) {
+        const enhanced = await enhanceImageWithAI(selectedFile);
+        if (enhanced) {
+          imageToUse = enhanced;
+          // Auto-trigger 3D generation after enhancement
+          setTimeout(() => {
+            generateFrom3DModel(enhanced);
+          }, 500);
+          return; // Exit here, let the auto-trigger handle 3D generation
+        } else {
+          // Enhancement failed, ask user if they want to continue with original
+          if (confirm(
+            "Image enhancement for manufacturability failed. Would you like to continue with the original image?"
+          )) {
+            setStatus("idle");
+            return;
+          }
+        }
+      } else if (useAiEnhancement && enhancedImageUrl) {
+        // Use existing enhanced image
+        imageToUse = enhancedImageUrl;
+      }
+      
+      await generateFrom3DModel(imageToUse);
+      
+    } catch (error) {
+      console.error("Error generating model:", error)
+      setStatus("error")
+      setIsGenerating(false)
+      toast({
+        title: "Error",
+        description: "Failed to generate model. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
   const resetState = () => {
     setSelectedFile(null);
     setPreviewUrl(null);
@@ -271,8 +331,19 @@ export function ModelGenerator() {
       setSelectedFile(file)
       const url = URL.createObjectURL(file)
       setPreviewUrl(url)
+      
+      // Automatically start 3D model generation after file upload
+      toast({
+        title: "Image Uploaded",
+        description: "Starting automatic 3D model generation...",
+      });
+      
+      // Use setTimeout to ensure state updates are processed first
+      setTimeout(() => {
+        handleGenerate();
+      }, 100);
     }
-  }, [])
+  }, [handleGenerate])
 
   const onStlDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0]
@@ -432,65 +503,7 @@ export function ModelGenerator() {
     }
   };
 
-  const handleGenerate = async () => {
-    if (!selectedFile) {
-      toast({
-        title: "No Image",
-        description: "Please upload an image to generate a model.",
-        variant: "destructive",
-      })
-      return
-    }
-    
-    // Check if user has reached their limit
-    if (!checkUserLimits()) return;
-    
-    // Notify parent about generation initiation
-    notifyParentAboutGeneration();
-    
-    setStatus("uploading")
-    setProgress(0)
-    
-    try {
-      let imageToUse: string | null = null;
-      
-      // Step 1: Handle Manufacturability Enhancement if enabled
-      if (useAiEnhancement && !enhancedImageUrl) {
-        const enhanced = await enhanceImageWithAI(selectedFile);
-        if (enhanced) {
-          imageToUse = enhanced;
-          // Auto-trigger 3D generation after enhancement
-          setTimeout(() => {
-            generateFrom3DModel(enhanced);
-          }, 500);
-          return; // Exit here, let the auto-trigger handle 3D generation
-        } else {
-          // Enhancement failed, ask user if they want to continue with original
-          if (confirm(
-            "Image enhancement for manufacturability failed. Would you like to continue with the original image?"
-          )) {
-            setStatus("idle");
-            return;
-          }
-        }
-      } else if (useAiEnhancement && enhancedImageUrl) {
-        // Use existing enhanced image
-        imageToUse = enhancedImageUrl;
-      }
-      
-      await generateFrom3DModel(imageToUse);
-      
-    } catch (error) {
-      console.error("Error generating model:", error)
-      setStatus("error")
-      setIsGenerating(false)
-      toast({
-        title: "Error",
-        description: "Failed to generate model. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }
+
 
   // Separate function for 3D model generation
   const generateFrom3DModel = async (imageToUse: string | null) => {
@@ -1384,7 +1397,7 @@ export function ModelGenerator() {
                   ) : (
                     <div className="py-3">
                       <Camera className="h-6 w-6 text-gray-400 mx-auto mb-1" />
-                      <p className="text-xs font-medium">Upload Image</p>
+                      <p className="text-xs font-medium">Upload Image (Auto-Generate)</p>
                       <p className="text-xs text-gray-500">JPG, PNG, WebP, GIF, BMP, TIFF, SVG, HEIC, AVIF (up to 50MB)</p>
                     </div>
                   )}
@@ -1458,40 +1471,32 @@ export function ModelGenerator() {
                 </div>
               )}
 
-              {/* Generate button */}
+              {/* Automatic Generation Status */}
               {(status !== "completed" || !modelUrl) && !selectedStlFile && (
-                <Button
-                  className="w-full flex items-center justify-center"
-                  size="sm"
-                  onClick={handleGenerate}
-                  disabled={
-                    isGenerating || 
-                    !selectedFile ||
-                    isEnhancing
-                  }
-                >
-                  {isGenerating ? (
-                    <>
-                      <span className="text-xs mr-2">Generating</span>
-                      <div className="h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                    </>
-                  ) : isEnhancing ? (
-                    <>
-                      <span className="text-xs mr-2">Enhancing Image</span>
-                      <div className="h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="h-3 w-3 mr-2" />
-                      <span className="text-xs">
-                        {useAiEnhancement ? 
-                          (enhancedImageUrl ? "Generate from Enhanced Image" : "Enhance & Generate 3D Model") : 
-                          "Generate 3D Model"
-                        }
+                <div className="w-full p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  {isGenerating || isEnhancing ? (
+                    <div className="flex items-center justify-center">
+                      <div className="h-3 w-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-2"></div>
+                      <span className="text-xs text-blue-700">
+                        {isEnhancing ? "Enhancing Image..." : "Generating 3D Model..."}
                       </span>
-                    </>
+                    </div>
+                  ) : selectedFile ? (
+                    <div className="flex items-center justify-center">
+                      <Wand2 className="h-3 w-3 mr-2 text-blue-500" />
+                      <span className="text-xs text-blue-700">
+                        Processing uploaded image automatically...
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center">
+                      <Upload className="h-3 w-3 mr-2 text-blue-500" />
+                      <span className="text-xs text-blue-700">
+                        Upload an image to automatically generate a 3D model
+                      </span>
+                    </div>
                   )}
-                </Button>
+                </div>
               )}
 
               {/* Model Info Display */}
@@ -1634,7 +1639,7 @@ export function ModelGenerator() {
                   <div className="text-center text-gray-500">
                     <Camera className="h-16 w-16 mx-auto mb-4 text-gray-300" />
                     <p className="text-lg font-medium">3D Model Viewer</p>
-                    <p className="text-sm">Upload an image or STL file to get started</p>
+                    <p className="text-sm">Upload an image for automatic 3D generation or upload an STL file</p>
                   </div>
                 </div>
               )}
