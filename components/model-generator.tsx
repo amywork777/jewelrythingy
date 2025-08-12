@@ -291,10 +291,20 @@ export function ModelGenerator() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      "image/jpeg": [],
-      "image/png": [],
+      "image/jpeg": [".jpg", ".jpeg"],
+      "image/png": [".png"],
+      "image/webp": [".webp"],
+      "image/gif": [".gif"],
+      "image/bmp": [".bmp"],
+      "image/tiff": [".tiff", ".tif"],
+      "image/svg+xml": [".svg"],
+      "image/x-icon": [".ico"],
+      "image/heic": [".heic", ".heif"],
+      "image/avif": [".avif"],
+      "image/jxl": [".jxl"],
     },
     maxFiles: 1,
+    maxSize: 50 * 1024 * 1024, // 50MB limit
     disabled: status === "uploading" || status === "generating",
   })
 
@@ -1338,7 +1348,7 @@ export function ModelGenerator() {
                     <div className="py-3">
                       <Camera className="h-6 w-6 text-gray-400 mx-auto mb-1" />
                       <p className="text-xs font-medium">Upload Image</p>
-                      <p className="text-xs text-gray-500">JPG, PNG</p>
+                      <p className="text-xs text-gray-500">JPG, PNG, WebP, GIF, BMP, TIFF, SVG, HEIC, AVIF (up to 50MB)</p>
                     </div>
                   )}
                 </div>

@@ -245,9 +245,20 @@ export function ModelGenerator() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.webp']
+      "image/jpeg": [".jpg", ".jpeg"],
+      "image/png": [".png"],
+      "image/webp": [".webp"],
+      "image/gif": [".gif"],
+      "image/bmp": [".bmp"],
+      "image/tiff": [".tiff", ".tif"],
+      "image/svg+xml": [".svg"],
+      "image/x-icon": [".ico"],
+      "image/heic": [".heic", ".heif"],
+      "image/avif": [".avif"],
+      "image/jxl": [".jxl"],
     },
     multiple: false,
+    maxSize: 50 * 1024 * 1024, // 50MB limit
     disabled: status === "uploading" || status === "generating"
   })
 
@@ -272,10 +283,20 @@ export function ModelGenerator() {
   } = useDropzone({
     onDrop: onDropImageText,
     accept: {
-      "image/jpeg": [],
-      "image/png": [],
+      "image/jpeg": [".jpg", ".jpeg"],
+      "image/png": [".png"],
+      "image/webp": [".webp"],
+      "image/gif": [".gif"],
+      "image/bmp": [".bmp"],
+      "image/tiff": [".tiff", ".tif"],
+      "image/svg+xml": [".svg"],
+      "image/x-icon": [".ico"],
+      "image/heic": [".heic", ".heif"],
+      "image/avif": [".avif"],
+      "image/jxl": [".jxl"],
     },
     maxFiles: 1,
+    maxSize: 50 * 1024 * 1024, // 50MB limit
     disabled: status === "uploading" || status === "generating",
   })
 
@@ -1300,7 +1321,7 @@ export function ModelGenerator() {
                     Upload an image to generate a 3D model
                   </p>
                   <p className="mt-2 text-sm text-gray-500">
-                    Drag and drop or click to select • JPG, PNG up to 10MB
+                    Drag and drop or click to select • JPG, PNG, WebP, GIF, BMP, TIFF, SVG, HEIC, AVIF up to 50MB
                   </p>
                 </div>
               )}
