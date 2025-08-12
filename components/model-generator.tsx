@@ -549,6 +549,44 @@ export function ModelGenerator() {
         imageToken = uploadData.imageToken;
       }
 
+      // Step 3: Analyze image to create detailed prompt for better accuracy
+      let detailedPrompt = "Create a detailed 3D model based on the uploaded image.";
+      
+      try {
+        toast({
+          title: "Analyzing Image",
+          description: "Creating detailed description for accurate 3D modeling...",
+        });
+
+        const analysisFormData = new FormData();
+        analysisFormData.append("image", selectedFile!);
+        analysisFormData.append("prompt", "");
+
+        const analysisResponse = await fetch("/api/analyze-image", {
+          method: "POST",
+          body: analysisFormData,
+        });
+
+        if (analysisResponse.ok) {
+          const analysisData = await analysisResponse.json();
+          if (analysisData.description) {
+            detailedPrompt = analysisData.description;
+            console.log("Generated detailed prompt:", detailedPrompt);
+            
+            toast({
+              title: "Image Analysis Complete",
+              description: "Generating 3D model with detailed specifications...",
+            });
+          }
+        }
+      } catch (error) {
+        console.warn("Image analysis failed, using fallback prompt:", error);
+        toast({
+          title: "Using Standard Generation",
+          description: "Image analysis unavailable, generating with basic prompt.",
+        });
+      }
+
       // Save to Supabase Storage and create database record
       let supabaseUpload = null;
       let generationRecord = null;
@@ -558,9 +596,9 @@ export function ModelGenerator() {
         if (selectedFile) {
           supabaseUpload = await uploadFile(selectedFile, 'uploads');
           
-          // Create database record
+          // Create database record with detailed prompt
           generationRecord = await createModelGeneration({
-            prompt: `Image-based 3D model generation`,
+            prompt: detailedPrompt,
             generation_type: 'image',
             original_image_path: supabaseUpload.path,
             original_image_url: supabaseUpload.url,
@@ -586,7 +624,7 @@ export function ModelGenerator() {
         });
       }
 
-      // Step 3: Generate 3D model from the image
+      // Step 4: Generate 3D model using text-to-3D with detailed prompt for better accuracy
       setStatus("generating")
       const response = await fetch("/api/generate-model", {
         method: "POST",
@@ -594,9 +632,8 @@ export function ModelGenerator() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: "image",
-          imageToken: imageToken,
-          enhanced: useAiEnhancement && enhancedImageUrl !== null,
+          type: "text",
+          prompt: detailedPrompt,
         }),
       })
 

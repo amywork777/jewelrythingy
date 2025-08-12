@@ -86,10 +86,10 @@ export async function POST(request: Request) {
       
       console.log(`✅ [SERVER] Image converted to base64 (${Math.round(base64Image.length/1024)}KB)`);
       
-      // Construct prompt for Vision API - optimized for Tripo compatibility
+      // Construct prompt for Vision API - optimized for accurate 3D modeling
       const userPrompt = textPrompt 
-        ? `Look at this image and create a simple, clear description (no more than 3-4 sentences) of what 3D model should be created from it. ${textPrompt}` 
-        : "Look at this image and create a simple, clear description (no more than 3-4 sentences) of what 3D model should be created from it. Focus on the main object or character.";
+        ? `Analyze this image in detail and create a comprehensive description for generating an exact 3D model replica. Include specific details about shape, proportions, materials, textures, colors, and any unique features. ${textPrompt}` 
+        : "Analyze this image in detail and create a comprehensive description for generating an exact 3D model replica. Describe the object's exact shape, proportions, surface details, materials, textures, colors, and any distinctive features. Be as specific and detailed as possible to ensure the 3D model matches the image precisely.";
       
       console.log("[SERVER] Calling OpenAI Vision API...");
       
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
           messages: [
             {
               role: "system",
-              content: "You are a 3D modeling expert who creates brief, clear descriptions for 3D models. Keep descriptions concise (under 400 characters), focusing only on the main object, its shape, and key features. Avoid flowery language, formatting (like markdown), and excessive details. The descriptions will be used directly with a text-to-3D API."
+              content: "You are an expert 3D modeling specialist who creates highly detailed, accurate descriptions for generating precise 3D models. Your goal is to capture every important visual detail that would make the 3D model look exactly like the image. Include specific information about: shape and geometry, proportions and scale, surface textures and materials, colors and patterns, fine details and features, structural elements, and any distinctive characteristics. Be descriptive and thorough - the 3D model should be as close to the original image as possible. Use clear, technical language that a 3D modeling AI can understand and implement accurately."
             },
             {
               role: "user",
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
               ],
             },
           ],
-          max_tokens: 400,
+          max_tokens: 800,
         });
         
         // Extract the generated description
