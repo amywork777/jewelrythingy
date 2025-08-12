@@ -7,6 +7,7 @@ import { Download, Upload, Wand2, RefreshCw, Camera, Repeat } from "lucide-react
 import { useToast } from "@/components/ui/use-toast"
 import { useDropzone } from "react-dropzone"
 import { convertGlbToStl } from "@/lib/stl-utils"
+import { useSupabaseStorage } from "@/hooks/use-supabase-storage"
 import * as THREE from "three"
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
@@ -75,6 +76,16 @@ export function ModelGenerator() {
   const [targetDimensions, setTargetDimensions] = useState<{width: number, height: number, depth: number} | null>(null)
   const [baseDimensions, setBaseDimensions] = useState<{width: number, height: number, depth: number} | null>(null)
   const { toast } = useToast()
+
+  // Supabase integration
+  const { 
+    sessionId, 
+    uploadFile, 
+    uploadSTL, 
+    createModelGeneration, 
+    updateModelGeneration 
+  } = useSupabaseStorage()
+  const [currentGenerationId, setCurrentGenerationId] = useState<string | null>(null)
 
   const [status, setStatus] = useState<ModelGenerationStatus>("idle")
   const [modelUrl, setModelUrl] = useState<string | null>(null)
@@ -528,6 +539,43 @@ export function ModelGenerator() {
         imageToken = uploadData.imageToken;
       }
 
+      // Save to Supabase Storage and create database record
+      let supabaseUpload = null;
+      let generationRecord = null;
+      
+      try {
+        // Upload original image to Supabase
+        if (selectedFile) {
+          supabaseUpload = await uploadFile(selectedFile, 'uploads');
+          
+          // Create database record
+          generationRecord = await createModelGeneration({
+            prompt: `Image-based 3D model generation`,
+            generation_type: 'image',
+            original_image_path: supabaseUpload.path,
+            original_image_url: supabaseUpload.url,
+            file_sizes: {
+              original: selectedFile.size
+            }
+          });
+          
+          setCurrentGenerationId(generationRecord.generation.id);
+          
+          toast({
+            title: "Saved to Database",
+            description: "Image uploaded and generation record created.",
+          });
+        }
+      } catch (error) {
+        console.error('Supabase upload error:', error);
+        // Don't fail the whole process, just log the error
+        toast({
+          title: "Database Warning",
+          description: "Model generation continues, but may not be saved to history.",
+          variant: "destructive",
+        });
+      }
+
       // Step 3: Generate 3D model from the image
       setStatus("generating")
       const response = await fetch("/api/generate-model", {
@@ -574,6 +622,42 @@ export function ModelGenerator() {
       // Create a URL for the STL blob
       const blobUrl = URL.createObjectURL(blob)
       setStlUrl(blobUrl)
+      
+      // Save STL to Supabase
+      try {
+        const stlUpload = await uploadSTL(blob, 'generated-model.stl');
+        
+        // Update database record with STL info
+        if (currentGenerationId) {
+          await updateModelGeneration(currentGenerationId, {
+            status: 'completed',
+            stl_file_path: stlUpload.path,
+            stl_file_url: stlUpload.url,
+            model_url: url,
+            file_sizes: {
+              original: selectedFile?.size || 0,
+              stl: blob.size
+            }
+          });
+          
+          toast({
+            title: "STL Saved",
+            description: "STL file has been saved to your storage.",
+          });
+        }
+      } catch (error) {
+        console.error('Supabase STL upload error:', error);
+        toast({
+          title: "STL Storage Warning",
+          description: "STL created but may not be saved to cloud storage.",
+          variant: "destructive",
+        });
+      }
+      
+      toast({
+        title: "Conversion complete",
+        description: "Your model has been converted to STL format.",
+      })
       
       return blob
     } catch (error) {
